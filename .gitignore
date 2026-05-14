@@ -1,0 +1,7 @@
+BookBuddy Ui-ux
+.env
+.venv
+.vscode
+__pycache__
+.github
+.agent
