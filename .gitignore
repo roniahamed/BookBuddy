@@ -5,3 +5,4 @@ BookBuddy Ui-ux
 __pycache__
 .github
 .agent
+env
