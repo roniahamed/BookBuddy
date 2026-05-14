@@ -6,3 +6,5 @@ __pycache__
 .github
 .agent
 env
+bookbuddy.db
+logs
