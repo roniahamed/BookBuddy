@@ -1,26 +1,165 @@
+"""
+BookBuddy API — Main Application Entry Point
+
+Community book-sharing platform backend.
+Built with FastAPI, SQLAlchemy, PostgreSQL, Firebase, Celery + Redis.
+"""
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import setup_middleware
 from app.core.logging import setup_logging
+from app.core.dependencies import get_db
 from app.router import api_router
+
+# ─── Import ALL models so Base.metadata.create_all() creates all tables ───
+from app.modules.users.model import User, UserSettings, UserFCMToken
+from app.modules.auth.model import PasswordResetToken
+from app.modules.books.model import Book, Genre, Wishlist, Review
+from app.modules.borrowing.model import BorrowRequest
+from app.modules.chat.model import Conversation, Message
+from app.modules.admin.model import AppConfig
 
 # 1. Setup Logging
 setup_logging()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
-    # Create database tables (if any models are imported)
+    """Application lifecycle — create tables, seed data on startup."""
     Base.metadata.create_all(bind=engine)
+
+    # Seed default genres if they don't exist
+    db = next(get_db())
+    try:
+        existing = db.query(Genre).count()
+        if existing == 0:
+            default_genres = [
+                "Science", "History", "Self-Help", "Fiction",
+                "Children's", "Business", "Drama", "Fantasy",
+            ]
+            for name in default_genres:
+                db.add(Genre(name=name))
+            db.commit()
+
+        # Seed default admin configs
+        from app.modules.admin.service import AdminConfigService
+        config_service = AdminConfigService(db)
+        config_service.seed_defaults()
+
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
     yield
     # Shutdown logic
 
+
+# ─── Tag Metadata for Beautiful Swagger UI ───────────────
+tags_metadata = [
+    {
+        "name": " Authentication",
+        "description": "**Register, login, Google Sign-In, and password management.** "
+                       "Supports email/password and Google OAuth via Firebase. "
+                       "Includes OTP-based forgot-password flow sent via SMTP email.",
+    },
+    {
+        "name": " Users & Profile",
+        "description": "**User profile management.** "
+                       "View and edit profiles (email is immutable), manage settings, "
+                       "change password, and permanently delete account.",
+    },
+    {
+        "name": " Books",
+        "description": "**Browse, search, translate, and manage books.** "
+                       "Full-text search, genre filtering, proximity-based discovery, "
+                       "EN↔HE auto-translation, wishlist, and book CRUD.",
+    },
+    {
+        "name": " Genres",
+        "description": "**Book genre categories.** "
+                       "Lookup table: Science, History, Fiction, Fantasy, etc.",
+    },
+    {
+        "name": "Reviews & Ratings",
+        "description": "**Community ratings system.** "
+                       "Submit reviews after completed borrows. "
+                       "Reviews automatically update book and user average ratings.",
+    },
+    {
+        "name": " Borrowing",
+        "description": "**Book borrowing lifecycle.** "
+                       "Request → Approve → Active (countdown) → Return → Confirm. "
+                       "Credit rewards are admin-configurable. "
+                       "Overdue reminders via Celery Beat + FCM.",
+    },
+    {
+        "name": " Chat & Messaging",
+        "description": "**Encrypted messaging between users.** "
+                       "All messages are Fernet-encrypted at rest in the database. "
+                       "Start conversations, send messages, track read status.",
+    },
+    {
+        "name": " Notifications",
+        "description": "**Notification preferences.** "
+                       "Toggle email notifications and push alerts. "
+                       "FCM push notifications for borrow events and chat messages.",
+    },
+    {
+        "name": " Admin",
+        "description": "**Admin configuration management.** "
+                       "Manage platform settings: borrow credit points, OTP expiry, "
+                       "nearby radius, borrow duration, reminder timing. Admin role required.",
+    },
+    {
+        "name": " Contact",
+        "description": "**Support contact form.** "
+                       "Submit inquiries to the BookBuddy team.",
+    },
+]
+
+
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title=" BookBuddy API",
+    description=(
+        "## Community Book Sharing Platform\n\n"
+        "**BookBuddy** connects neighbors through the joy of reading. "
+        "Discover, borrow, and share physical books with your local community.\n\n"
+        "### Key Features\n"
+        "-  **Authentication** — JWT + Google Sign-In via Firebase\n"
+        "-  **Book Discovery** — Search, filter, nearby, EN↔HE translation\n"
+        "-  **Borrowing** — Full lifecycle with admin-configurable credit rewards\n"
+        "-  **Reviews** — Community ratings for trust building\n"
+        "- **Chat** — Fernet-encrypted messaging between users\n"
+        "-  **Push Notifications** — FCM via Firebase + Celery background tasks\n"
+        "-  **Admin** — DB-driven configuration (no hardcoded values)\n\n"
+        "### Authentication\n"
+        "Most endpoints require a JWT token. Get one via `POST /auth/login` "
+        "or `POST /auth/google` and include as `Authorization: Bearer <token>`.\n\n"
+        "### Background Infrastructure\n"
+        "- **Celery + Redis** — email sending, push notifications, translation caching\n"
+        "- **Celery Beat** — overdue reminders, due-date alerts, OTP cleanup\n\n"
+        "---\n"
+        "*Built with by the BookBuddy team*"
+    ),
+    version="2.0.0",
+    openapi_tags=tags_metadata,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+    contact={
+        "name": "BookBuddy Support",
+        "email": "hello@bookbuddy.com",
+    },
+    license_info={
+        "name": "MIT License",
+    },
 )
 
 # 2. Setup Middlewares
@@ -29,10 +168,69 @@ setup_middleware(app)
 # 3. Include Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-@app.get("/")
+
+# ─── Root & Contact Endpoints ────────────────────────────
+
+@app.get("/", tags=[" Health Check"])
 async def root():
+    """API health check and welcome message."""
     return {
         "message": f"Welcome to {settings.PROJECT_NAME} API",
-        "version": "1.0.0",
-        "docs_url": "/docs"
+        "version": "2.0.0",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "features": [
+            "Firebase Google Login",
+            "FCM Push Notifications",
+            "SMTP OTP Email",
+            "Fernet Chat Encryption",
+            "Celery + Redis Background Tasks",
+            "Google Translate (EN↔HE)",
+            "PostgreSQL + Haversine Geo",
+            "Admin-Configurable Settings",
+        ],
     }
+
+
+class ContactRequest(BaseModel):
+    """Contact form submission (Contact page)."""
+    name: str = Field(..., min_length=2, max_length=150, description="Your name")
+    email: EmailStr = Field(..., description="Your email address")
+    subject: str = Field(..., min_length=2, max_length=255, description="Subject line")
+    message: str = Field(..., min_length=10, description="Your message")
+
+    model_config = {"json_schema_extra": {
+        "example": {
+            "name": "Alex Morgan",
+            "email": "alex@example.com",
+            "subject": "How can I join the community?",
+            "message": "I'd love to learn more about sharing books in my neighborhood.",
+        }
+    }}
+
+
+class ContactResponse(BaseModel):
+    """Response after submitting contact form."""
+    message: str = "Thank you for reaching out! We'll get back to you soon."
+
+
+@app.post(
+    f"{settings.API_V1_STR}/contact",
+    response_model=ContactResponse,
+    tags=[" Contact"],
+    summary="Submit contact form",
+    description="Submit an inquiry via the Contact page.",
+)
+async def submit_contact(data: ContactRequest):
+    # Send via Celery background task
+    try:
+        from app.background.tasks import send_notification_email_task
+        send_notification_email_task.delay(
+            settings.SMTP_FROM_EMAIL,
+            f"Contact Form: {data.subject}",
+            f"From: {data.name} ({data.email})\n\n{data.message}",
+            "Support Team",
+        )
+    except Exception:
+        pass  # Non-critical
+    return ContactResponse()
