@@ -1,19 +1,43 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "BookBuddy"
-    API_V1_STR: str = "/api/v1"
-    
+    PROJECT_NAME: str
+    API_V1_STR: str
+
+    # ─── Auth & Security ─────────────────────────────────
     SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    ENCRYPTION_KEY: str
+
+    # ─── Database (PostgreSQL) ───────────────────────────
     DATABASE_URL: str
-    
-    BACKEND_CORS_ORIGINS: List[str] = []
+
+    # ─── Firebase ─────────────────────────────────────────
+    FIREBASE_CREDENTIALS_PATH: str
+    FIREBASE_PROJECT_ID: str
+
+    # ─── SMTP (Email) ─────────────────────────────────────
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USER: str
+    SMTP_PASSWORD: str
+    SMTP_FROM_NAME: str
+    SMTP_FROM_EMAIL: str
+
+    # ─── Google Translate API ─────────────────────────────
+    GOOGLE_TRANSLATE_API_KEY: str
+
+    # ─── Redis + Celery ──────────────────────────────────
+    REDIS_URL: str
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
+
+    # ─── CORS ─────────────────────────────────────────────
+    BACKEND_CORS_ORIGINS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
