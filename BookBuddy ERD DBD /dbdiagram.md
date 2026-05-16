@@ -20,7 +20,7 @@
 | **Chat / Messages** | Conversation list per user (All / Unread / Archive); individual messages with timestamps; context: negotiating book pickup |
 | **Settings** | Preferences: Language (EN/HE toggle), Email Notification (on/off), New Message Alert (on/off) |
 | **Security** | Change password; Delete Account |
-| **Sign In / Log In** | Email + Password |
+| **Sign In / Log In** | Email + Password | google login
 | **Forgot Password / Verify Code / Set New Password** | Password reset flow |
 | **Onboarding** | 4 steps — app intro/location permission |
 | **Permission Location** | GPS location permission request |
