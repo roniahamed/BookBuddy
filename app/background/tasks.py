@@ -15,6 +15,14 @@ Scheduled tasks (Celery Beat):
 import logging
 from app.background.celery_app import celery_app
 
+# Import all models to ensure SQLAlchemy mappers are fully initialized for Celery tasks
+from app.modules.users.model import User, UserSettings, UserFCMToken
+from app.modules.auth.model import PasswordResetToken
+from app.modules.books.model import Book, Genre, Wishlist, Review
+from app.modules.borrowing.model import BorrowRequest
+from app.modules.chat.model import Conversation, Message
+from app.modules.admin.model import AppConfig
+
 logger = logging.getLogger(__name__)
 
 
