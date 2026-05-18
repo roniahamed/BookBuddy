@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -166,9 +167,14 @@ app = FastAPI(
 
 # 2. Setup Middlewares
 setup_middleware(app)
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # 3. Include Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# 4. Mount Admin Dashboard (SQLAlchemy Admin)
+from app.modules.admin.dashboard import setup_admin
+setup_admin(app)
 
 
 # ─── Custom Swagger UI with Username-to-Email visual override ────
