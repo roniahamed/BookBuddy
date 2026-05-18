@@ -23,7 +23,7 @@ api_router.include_router(
 api_router.include_router(
     users_router,
     prefix="/users",
-    tags=[" Users & Profile"],
+    tags=["Users & Profile"],
 )
 
 # ─── Books Module ────────────────────────────────────────
@@ -37,14 +37,14 @@ api_router.include_router(
 api_router.include_router(
     genre_router,
     prefix="/genres",
-    tags=[" Genres"],
+    tags=["Categories"],
 )
 
 # ─── Reviews ─────────────────────────────────────────────
 api_router.include_router(
     review_router,
     prefix="/reviews",
-    tags=[" Reviews & Ratings"],
+    tags=["Reviews & Ratings"],
 )
 
 # ─── Borrowing Module ────────────────────────────────────
@@ -58,19 +58,19 @@ api_router.include_router(
 api_router.include_router(
     chat_router,
     prefix="/conversations",
-    tags=[" Chat & Messaging"],
+    tags=["Chat & Messaging"],
 )
 
 # ─── Notification Module ─────────────────────────────────
 api_router.include_router(
     notification_router,
     prefix="/notifications",
-    tags=[" Notifications"],
+    tags=["Notifications"],
 )
 
 # ─── Admin Module ─────────────────────────────────────────
 api_router.include_router(
     admin_router,
     prefix="/admin",
-    tags=[" Admin"],
+    tags=["Admin"],
 )

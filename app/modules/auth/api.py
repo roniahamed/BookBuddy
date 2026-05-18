@@ -11,7 +11,7 @@ Covers:
 - GET  /auth/me                — Get current authenticated user
 - PUT  /auth/fcm-token         — Update FCM push notification token
 """
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.orm import Session
 from app.core.dependencies import get_db
 from app.modules.auth.service import AuthService
@@ -25,6 +25,7 @@ from app.modules.auth.schema import (
     ResetPasswordRequest, ResetPasswordResponse,
     CurrentUserResponse,
     UpdateFCMTokenRequest, UpdateFCMTokenResponse,
+    RefreshTokenRequest, RefreshTokenResponse,
 )
 from app.modules.users.model import User
 
@@ -56,17 +57,71 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
     response_model=TokenResponse,
     summary="Log in to your account",
     description=(
-        "Authenticate with email and password. "
-        "Returns a JWT access token. "
-        "Use this token in the `Authorization: Bearer <token>` header for authenticated endpoints."
+        "Authenticate with email and password. Supports both application/json (email/password) "
+        "and application/x-www-form-urlencoded (username/password for Swagger UI authorization)."
     ),
     responses={
         401: {"description": "Invalid email or password"},
     },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "email": {"type": "string", "format": "email", "example": "alex@example.com"},
+                            "password": {"type": "string", "example": "SecurePass1"}
+                        },
+                        "required": ["email", "password"]
+                    }
+                }
+            },
+            "required": True
+        }
+    }
 )
-async def login(data: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: Request, db: Session = Depends(get_db)):
+    content_type = request.headers.get("content-type", "")
+    email = None
+    password = None
+
+    if "application/x-www-form-urlencoded" in content_type:
+        form_data = await request.form()
+        email = form_data.get("username")
+        password = form_data.get("password")
+    else:
+        try:
+            body = await request.json()
+            email = body.get("email")
+            password = body.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="Email and password are required. For Swagger login, enter email in the username field."
+        )
+
+    data = LoginRequest(email=email, password=password)
     service = AuthService(db)
     return service.login(data)
+
+
+@router.post(
+    "/refresh",
+    response_model=RefreshTokenResponse,
+    summary="Refresh access token",
+    description="Exchange a valid refresh token for a new access token and rotated refresh token.",
+    responses={
+        401: {"description": "Invalid or expired refresh token"},
+    },
+)
+async def refresh_token_endpoint(data: RefreshTokenRequest, db: Session = Depends(get_db)):
+    service = AuthService(db)
+    return service.refresh_token(data.refresh_token)
 
 
 @router.post(

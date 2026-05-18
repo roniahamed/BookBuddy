@@ -46,8 +46,21 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     """JWT token response after successful login."""
     access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
     token_type: str = Field(default="bearer", description="Token type")
     user: "UserBrief"
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request schema for exchanging a refresh token for a new access token."""
+    refresh_token: str = Field(..., description="Valid JWT refresh token")
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response schema for token refresh."""
+    access_token: str = Field(..., description="New JWT access token")
+    refresh_token: str = Field(..., description="New/rotated JWT refresh token")
+    token_type: str = Field(default="bearer", description="Token type")
 
 
 class UserBrief(BaseModel):

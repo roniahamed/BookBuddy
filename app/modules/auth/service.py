@@ -6,7 +6,7 @@ Auth module service — business logic for authentication flows.
 - FCM token management
 """
 from sqlalchemy.orm import Session
-from app.core.security import create_access_token, verify_password, get_password_hash
+from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
 from app.core.firebase import verify_google_token
 from app.modules.auth.repository import AuthRepository
 from app.modules.auth.schema import (
@@ -14,6 +14,7 @@ from app.modules.auth.schema import (
     UserBrief, ForgotPasswordRequest, ForgotPasswordResponse,
     VerifyCodeRequest, VerifyCodeResponse, ResetPasswordRequest, ResetPasswordResponse,
     GoogleLoginRequest, UpdateFCMTokenRequest, UpdateFCMTokenResponse,
+    RefreshTokenResponse,
 )
 from app.modules.auth.exceptions import (
     InvalidCredentialsException, EmailAlreadyExistsException,
@@ -69,9 +70,11 @@ class AuthService:
             raise InvalidCredentialsException()
 
         access_token = create_access_token(subject=user.id)
+        refresh_token = create_refresh_token(subject=user.id)
 
         return TokenResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             user=UserBrief(
                 id=user.id,
                 full_name=user.full_name,
@@ -125,9 +128,11 @@ class AuthService:
                 )
 
         access_token = create_access_token(subject=user.id)
+        refresh_token = create_refresh_token(subject=user.id)
 
         return TokenResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             user=UserBrief(
                 id=user.id,
                 full_name=user.full_name,
@@ -214,3 +219,39 @@ class AuthService:
         self.repo.mark_token_used(token.id)
 
         return ResetPasswordResponse()
+
+    def refresh_token(self, refresh_token: str) -> RefreshTokenResponse:
+        """
+        Validate refresh token, check user status, and issue a fresh access and refresh token.
+        """
+        from jose import jwt, JWTError
+        from app.core.config import settings
+        
+        credentials_exception = HTTPException(
+            status_code=401,
+            detail="Could not validate refresh credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+        try:
+            payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id: str = payload.get("sub")
+            token_type: str = payload.get("type")
+            if user_id is None:
+                raise credentials_exception
+            if token_type != "refresh":
+                raise credentials_exception
+        except JWTError:
+            raise credentials_exception
+            
+        user = self.repo.get_user_by_id(int(user_id))
+        if user is None or not user.is_active:
+            raise credentials_exception
+            
+        new_access_token = create_access_token(subject=user.id)
+        new_refresh_token = create_refresh_token(subject=user.id)
+        
+        return RefreshTokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+        )

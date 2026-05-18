@@ -6,6 +6,8 @@ Built with FastAPI, SQLAlchemy, PostgreSQL, Firebase, Celery + Redis.
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
+from fastapi.responses import HTMLResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
@@ -63,25 +65,25 @@ async def lifespan(app: FastAPI):
 # ─── Tag Metadata for Beautiful Swagger UI ───────────────
 tags_metadata = [
     {
-        "name": " Authentication",
+        "name": "Authentication",
         "description": "**Register, login, Google Sign-In, and password management.** "
                        "Supports email/password and Google OAuth via Firebase. "
                        "Includes OTP-based forgot-password flow sent via SMTP email.",
     },
     {
-        "name": " Users & Profile",
+        "name": "Users & Profile",
         "description": "**User profile management.** "
                        "View and edit profiles (email is immutable), manage settings, "
                        "change password, and permanently delete account.",
     },
     {
-        "name": " Books",
+        "name": "Books",
         "description": "**Browse, search, translate, and manage books.** "
                        "Full-text search, genre filtering, proximity-based discovery, "
                        "EN↔HE auto-translation, wishlist, and book CRUD.",
     },
     {
-        "name": " Genres",
+        "name": "Categories",
         "description": "**Book genre categories.** "
                        "Lookup table: Science, History, Fiction, Fantasy, etc.",
     },
@@ -92,32 +94,32 @@ tags_metadata = [
                        "Reviews automatically update book and user average ratings.",
     },
     {
-        "name": " Borrowing",
+        "name": "Borrowing",
         "description": "**Book borrowing lifecycle.** "
                        "Request → Approve → Active (countdown) → Return → Confirm. "
                        "Credit rewards are admin-configurable. "
                        "Overdue reminders via Celery Beat + FCM.",
     },
     {
-        "name": " Chat & Messaging",
+        "name": "Chat & Messaging",
         "description": "**Encrypted messaging between users.** "
                        "All messages are Fernet-encrypted at rest in the database. "
                        "Start conversations, send messages, track read status.",
     },
     {
-        "name": " Notifications",
+        "name": "Notifications",
         "description": "**Notification preferences.** "
                        "Toggle email notifications and push alerts. "
                        "FCM push notifications for borrow events and chat messages.",
     },
     {
-        "name": " Admin",
+        "name": "Admin",
         "description": "**Admin configuration management.** "
                        "Manage platform settings: borrow credit points, OTP expiry, "
                        "nearby radius, borrow duration, reminder timing. Admin role required.",
     },
     {
-        "name": " Contact",
+        "name": "Contact",
         "description": "**Support contact form.** "
                        "Submit inquiries to the BookBuddy team.",
     },
@@ -150,7 +152,7 @@ app = FastAPI(
     version="2.0.0",
     openapi_tags=tags_metadata,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url="/docs",
+    docs_url=None,
     redoc_url="/redoc",
     lifespan=lifespan,
     contact={
@@ -167,6 +169,50 @@ setup_middleware(app)
 
 # 3. Include Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+# ─── Custom Swagger UI with Username-to-Email visual override ────
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    html_response = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Documentation",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
+    )
+    
+    # Pure-JS visual mapping of 'username' to 'email' using reactive MutationObserver
+    js_to_inject = """
+    <script>
+    const observer = new MutationObserver((mutations) => {
+        // Find and swap text inside labels, spans, headers, cells
+        const elements = document.querySelectorAll("label, span, th, td");
+        elements.forEach(el => {
+            if (el.textContent === "username:") {
+                el.textContent = "email:";
+            }
+            if (el.textContent === "username") {
+                el.textContent = "email";
+            }
+        });
+        
+        // Find and swap input placeholders
+        const inputs = document.querySelectorAll("input");
+        inputs.forEach(input => {
+            if (input.placeholder === "username") {
+                input.placeholder = "email";
+            }
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+    """
+    
+    original_body = html_response.body.decode("utf-8")
+    modified_body = original_body.replace("</body>", f"{js_to_inject}</body>")
+    
+    return HTMLResponse(content=modified_body, status_code=html_response.status_code)
 
 
 # ─── Root & Contact Endpoints ────────────────────────────
