@@ -6,10 +6,10 @@ Covers the full borrow lifecycle:
 - GET    /borrow-requests/borrowed      — My borrowed books (Borrowed tab)
 - GET    /borrow-requests/lent-out      — My lent out books (Lent Out tab)
 - GET    /borrow-requests/{id}          — Single borrow request detail
-- PUT    /borrow-requests/{id}/approve  — Owner approves request
-- PUT    /borrow-requests/{id}/reject   — Owner rejects request
-- PUT    /borrow-requests/{id}/return   — Borrower marks as returned
-- PUT    /borrow-requests/{id}/confirm  — Owner confirms book received
+- PATCH  /borrow-requests/{id}/approve  — Owner approves request
+- PATCH  /borrow-requests/{id}/reject   — Owner rejects request
+- PATCH  /borrow-requests/{id}/return   — Borrower marks as returned
+- PATCH  /borrow-requests/{id}/confirm  — Owner confirms book received
 """
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -108,7 +108,7 @@ async def get_borrow_detail(
     return service.get_borrow_detail(request_id, current_user)
 
 
-@router.put(
+@router.patch(
     "/{request_id}/approve",
     response_model=BorrowStatusUpdateResponse,
     summary="Approve borrow request",
@@ -134,7 +134,7 @@ async def approve_request(
     return service.approve_request(request_id, current_user)
 
 
-@router.put(
+@router.patch(
     "/{request_id}/reject",
     response_model=BorrowStatusUpdateResponse,
     summary="Reject borrow request",
@@ -154,7 +154,7 @@ async def reject_request(
     return service.reject_request(request_id, current_user)
 
 
-@router.put(
+@router.patch(
     "/{request_id}/return",
     response_model=BorrowStatusUpdateResponse,
     summary="Mark book as returned",
@@ -178,7 +178,7 @@ async def mark_returned(
     return service.mark_returned(request_id, current_user)
 
 
-@router.put(
+@router.patch(
     "/{request_id}/confirm",
     response_model=BorrowStatusUpdateResponse,
     summary="Confirm book received back",

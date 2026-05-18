@@ -46,17 +46,17 @@ assert r.json()["auth_provider"] == "email"
 p(3, "GET", "/users/me", r.status_code, f"role={r.json()['role']}, auth_provider={r.json()['auth_provider']}")
 
 # ─── 4. EMAIL IMMUTABILITY — reject email change ────────
-r = requests.put(f"{BASE}/users/me", headers=h(token_a), json={"email": "new@example.com"})
+r = requests.patch(f"{BASE}/users/me", headers=h(token_a), json={"email": "new@example.com"})
 assert r.status_code == 400
 assert "Email cannot be changed" in r.json()["detail"]
-p(4, "PUT", "/users/me (email change)", r.status_code, "Email change blocked ✅")
+p(4, "PATCH", "/users/me (email change)", r.status_code, "Email change blocked ✅")
 
 # ─── 5. Update location (allowed) ───────────────────────
-r = requests.put(f"{BASE}/users/me", headers=h(token_a), json={
+r = requests.patch(f"{BASE}/users/me", headers=h(token_a), json={
     "location": "Tel Aviv, Israel", "latitude": 32.0853, "longitude": 34.7818
 })
 assert r.status_code == 200
-p(5, "PUT", "/users/me", r.status_code, f"Location updated: {r.json()['location']}")
+p(5, "PATCH", "/users/me", r.status_code, f"Location updated: {r.json()['location']}")
 
 # ─── 6. Genres seeded ───────────────────────────────────
 r = requests.get(f"{BASE}/genres")
@@ -100,21 +100,21 @@ borrow_id = r.json()["id"]
 p(10, "POST", "/borrow-requests", r.status_code, f"Borrow request: id={borrow_id}")
 
 # ─── 11. Approve borrow ─────────────────────────────────
-r = requests.put(f"{BASE}/borrow-requests/{borrow_id}/approve", headers=h(token_a))
+r = requests.patch(f"{BASE}/borrow-requests/{borrow_id}/approve", headers=h(token_a))
 assert r.status_code == 200
-p(11, "PUT", f"/borrow-requests/{borrow_id}/approve", r.status_code, "Approved")
+p(11, "PATCH", f"/borrow-requests/{borrow_id}/approve", r.status_code, "Approved")
 
 # ─── 12. Return ─────────────────────────────────────────
-r = requests.put(f"{BASE}/borrow-requests/{borrow_id}/return", headers=h(token_b))
+r = requests.patch(f"{BASE}/borrow-requests/{borrow_id}/return", headers=h(token_b))
 assert r.status_code == 200
-p(12, "PUT", f"/borrow-requests/{borrow_id}/return", r.status_code, "Returned")
+p(12, "PATCH", f"/borrow-requests/{borrow_id}/return", r.status_code, "Returned")
 
 # ─── 13. Confirm (credits from admin config) ────────────
-r = requests.put(f"{BASE}/borrow-requests/{borrow_id}/confirm", headers=h(token_a))
+r = requests.patch(f"{BASE}/borrow-requests/{borrow_id}/confirm", headers=h(token_a))
 assert r.status_code == 200
 # Check that message mentions credit amounts from admin config
 assert "5" in r.json()["message"] and "10" in r.json()["message"]
-p(13, "PUT", f"/borrow-requests/{borrow_id}/confirm", r.status_code, f"Confirmed: {r.json()['message']}")
+p(13, "PATCH", f"/borrow-requests/{borrow_id}/confirm", r.status_code, f"Confirmed: {r.json()['message']}")
 
 # ─── 14. Check credits ──────────────────────────────────
 r = requests.get(f"{BASE}/users/me", headers=h(token_a))
@@ -177,10 +177,10 @@ assert len(r.json()["items"]) == 9
 p(20, "GET", "/admin/config", r.status_code, f"{len(r.json()['items'])} admin configs")
 
 # ─── 21. Admin config — update ──────────────────────────
-r = requests.put(f"{BASE}/admin/config/borrow_reward_borrower_points", headers=h(token_a), json={"value": "15"})
+r = requests.patch(f"{BASE}/admin/config/borrow_reward_borrower_points", headers=h(token_a), json={"value": "15"})
 assert r.status_code == 200
 assert r.json()["value"] == "15"
-p(21, "PUT", "/admin/config/borrow_reward_borrower_points", r.status_code, "Updated to 15")
+p(21, "PATCH", "/admin/config/borrow_reward_borrower_points", r.status_code, "Updated to 15")
 
 # ─── 22. Non-admin blocked ──────────────────────────────
 r = requests.get(f"{BASE}/admin/config", headers=h(token_b))
@@ -188,9 +188,9 @@ assert r.status_code == 403
 p(22, "GET", "/admin/config (non-admin)", r.status_code, "Admin access blocked ✅")
 
 # ─── 23. FCM token update ───────────────────────────────
-r = requests.put(f"{BASE}/auth/fcm-token", headers=h(token_a), json={"fcm_token": "test-fcm-token-123"})
+r = requests.patch(f"{BASE}/auth/fcm-token", headers=h(token_a), json={"fcm_token": "test-fcm-token-123"})
 assert r.status_code == 200
-p(23, "PUT", "/auth/fcm-token", r.status_code, "FCM token updated")
+p(23, "PATCH", "/auth/fcm-token", r.status_code, "FCM token updated")
 
 # ─── 24. Google login endpoint exists ────────────────────
 r = requests.post(f"{BASE}/auth/google", json={"id_token": "fake-token"})
@@ -265,11 +265,11 @@ assert r.status_code == 200
 p(33, "POST", "/contact", r.status_code, "Contact submitted")
 
 # ─── 34. Change password ────────────────────────────────
-r = requests.put(f"{BASE}/users/me/security/change-password", headers=h(token_a), json={
+r = requests.patch(f"{BASE}/users/me/security/change-password", headers=h(token_a), json={
     "current_password": "SecurePass1", "new_password": "NewPass456", "confirm_password": "NewPass456"
 })
 assert r.status_code == 200
-p(34, "PUT", "/users/me/security/change-password", r.status_code, "Password changed")
+p(34, "PATCH", "/users/me/security/change-password", r.status_code, "Password changed")
 
 # ─── 35. Unread count ───────────────────────────────────
 r = requests.get(f"{BASE}/conversations/unread-count", headers=h(token_a))

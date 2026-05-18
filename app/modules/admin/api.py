@@ -53,7 +53,7 @@ async def get_config(
     return service.get_config(key)
 
 
-@router.put(
+@router.patch(
     "/config/{key}",
     response_model=AppConfigResponse,
     summary="Update a configuration",

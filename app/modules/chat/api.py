@@ -8,8 +8,8 @@ Covers:
 - GET    /conversations/{id}             — Conversation details
 - GET    /conversations/{id}/messages    — Messages in conversation
 - POST   /conversations/{id}/messages    — Send message
-- PUT    /conversations/{id}/read        — Mark all messages as read
-- PUT    /conversations/{id}/archive     — Archive conversation
+- PATCH  /conversations/{id}/read        — Mark all messages as read
+- PATCH  /conversations/{id}/archive     — Archive conversation
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -149,7 +149,7 @@ async def send_message(
     return service.send_message(conversation_id, current_user, data)
 
 
-@router.put(
+@router.patch(
     "/{conversation_id}/read",
     summary="Mark messages as read",
     description="Mark all unread messages from the other user as read.",
@@ -167,7 +167,7 @@ async def mark_read(
     return service.mark_read(conversation_id, current_user)
 
 
-@router.put(
+@router.patch(
     "/{conversation_id}/archive",
     summary="Archive conversation",
     description="Move a conversation to the Archive tab.",

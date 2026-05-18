@@ -3,7 +3,7 @@ Notification module API endpoints.
 
 Covers:
 - GET  /notifications/preferences — Get notification settings
-- PUT  /notifications/preferences — Update notification settings
+- PATCH  /notifications/preferences — Update notification settings
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -36,7 +36,7 @@ async def get_preferences(
     return service.get_preferences(current_user)
 
 
-@router.put(
+@router.patch(
     "/preferences",
     response_model=NotificationPreferencesResponse,
     summary="Update notification preferences",

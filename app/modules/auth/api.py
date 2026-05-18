@@ -9,7 +9,7 @@ Covers:
 - POST /auth/verify-code       — Verify 6-digit OTP code
 - POST /auth/reset-password    — Set new password (OTP-verified)
 - GET  /auth/me                — Get current authenticated user
-- PUT  /auth/fcm-token         — Update FCM push notification token
+- PATCH /auth/fcm-token         — Update FCM push notification token
 """
 from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.orm import Session
@@ -206,7 +206,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.put(
+@router.patch(
     "/fcm-token",
     response_model=UpdateFCMTokenResponse,
     summary="Update FCM push notification token",

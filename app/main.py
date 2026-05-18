@@ -160,7 +160,7 @@ app = FastAPI(
         "email": "hello@bookbuddy.com",
     },
     license_info={
-        "name": "MIT License",
+        "name": "All Rights Reserved (Proprietary)",
     },
 )
 

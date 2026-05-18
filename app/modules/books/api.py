@@ -10,7 +10,7 @@ Covers:
 - GET    /books/my-books       — My uploaded books
 - GET    /books/{id}           — Book detail page
 - POST   /books               — Upload new book
-- PUT    /books/{id}           — Update book (owner only)
+- PATCH  /books/{id}           — Update book (owner only)
 - DELETE /books/{id}           — Delete book (owner only)
 - GET    /genres               — List all genres
 - POST   /books/{id}/wishlist  — Add to wishlist
@@ -208,7 +208,7 @@ async def create_book(
     return service.create_book(current_user, data)
 
 
-@router.put(
+@router.patch(
     "/{book_id}",
     response_model=BookDetailResponse,
     summary="Update book details",

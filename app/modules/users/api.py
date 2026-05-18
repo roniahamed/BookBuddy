@@ -3,10 +3,10 @@ Users module API endpoints.
 
 Covers:
 - GET    /users/me                          — My full profile (Profile sidebar)
-- PUT    /users/me                          — Update my profile (edit icon)
+- PATCH  /users/me                          — Update my profile (edit icon)
 - GET    /users/me/settings                 — Get settings (Settings screen)
-- PUT    /users/me/settings                 — Update settings
-- PUT    /users/me/security/change-password — Change password (Security screen)
+- PATCH  /users/me/settings                 — Update settings
+- PATCH  /users/me/security/change-password — Change password (Security screen)
 - DELETE /users/me/account                  — Delete account (Security screen)
 - GET    /users/{user_id}                   — Public profile (Other People Profile)
 - GET    /users/{user_id}/books             — User's uploaded books (public)
@@ -50,7 +50,7 @@ async def get_my_profile(
     return service.get_my_profile(current_user)
 
 
-@router.put(
+@router.patch(
     "/me",
     response_model=UserProfileResponse,
     summary="Update my profile",
@@ -97,7 +97,7 @@ async def get_settings(
     return service.get_settings(current_user)
 
 
-@router.put(
+@router.patch(
     "/me/settings",
     response_model=UserSettingsResponse,
     summary="Update my settings",
@@ -117,7 +117,7 @@ async def update_settings(
 
 # ─── Security ────────────────────────────────────────────
 
-@router.put(
+@router.patch(
     "/me/security/change-password",
     response_model=ChangePasswordResponse,
     summary="Change password",
