@@ -115,9 +115,19 @@ tags_metadata = [
     },
     {
         "name": "Admin",
-        "description": "**Admin configuration management.** "
-                       "Manage platform settings: borrow credit points, OTP expiry, "
-                       "nearby radius, borrow duration, reminder timing. Admin role required.",
+        "description": (
+            "**Full platform administration — admin role required.**\n\n"
+            "- **Config** — Manage platform settings: borrow points, OTP expiry, radius, durations.\n"
+            "- **Stats** — Real-time dashboard snapshot: users, books, borrows, reviews, overdue counts.\n"
+            "- **User Management** — List, inspect, suspend/reactivate, or permanently delete users. "
+            "Suspend sends FCM + email notification to the user.\n"
+            "- **Book Management** — List all listings, override availability, or remove policy-violating books. "
+            "Owner is notified on removal.\n"
+            "- **Reviews & Ratings** — Monitor all reviews, filter by rating range, "
+            "delete abusive reviews with automatic avg_rating recalculation.\n"
+            "- **Notifications** — Broadcast FCM push + email to all active users or a specific user "
+            "via Celery background tasks."
+        ),
     },
     {
         "name": "Contact",
