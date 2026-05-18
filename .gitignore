@@ -8,3 +8,10 @@ __pycache__
 env
 bookbuddy.db
 logs
+
+firebase.json
+firebase-credentials.json
+serviceAccountKey.json
+web-app-841540882033.appspot.com.json
+
+frontend
