@@ -6,9 +6,29 @@ from sqlalchemy import (
     Column, Integer, String, Float, Boolean, DateTime, Text,
     ForeignKey, Index
 )
+from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+
+
+class IntBoolean(TypeDecorator):
+    """
+    Custom SQLAlchemy type to map Python boolean values (True/False)
+    to Integer columns (1/0) in PostgreSQL/SQLite.
+    """
+    impl = Integer
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return 1 if value else 0
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return bool(value)
 
 
 class User(Base):
@@ -58,8 +78,8 @@ class UserSettings(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     language = Column(String(10), default="EN", comment="Preferred UI language, e.g. EN or HE")
-    email_notifications = Column(Integer, default=1, comment="Toggle for email notification alerts (1=on, 0=off)")
-    new_message_alert = Column(Integer, default=1, comment="Toggle for in-app new message alert (1=on, 0=off)")
+    email_notifications = Column(IntBoolean, default=True, comment="Toggle for email notification alerts (True/False mapped to 1/0)")
+    new_message_alert = Column(IntBoolean, default=True, comment="Toggle for in-app new message alert (True/False mapped to 1/0)")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
