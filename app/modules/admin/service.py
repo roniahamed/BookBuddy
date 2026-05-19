@@ -319,6 +319,7 @@ class AdminManagementService:
                 book_title=review.book.title if review.book else "",
                 reviewer_id=review.reviewer_id,
                 reviewer_name=review.reviewer.full_name if review.reviewer else "",
+                reviewer_avatar_url=review.reviewer.avatar_url if review.reviewer else None,
                 reviewee_id=review.reviewee_id,
                 reviewee_name=review.reviewee.full_name if review.reviewee else "",
                 rating=review.rating,
@@ -377,11 +378,8 @@ class AdminManagementService:
             if data.send_push:
                 try:
                     from app.background.tasks import send_push_notification_task
-                    tokens = [t.token for t in user.fcm_tokens if t.token]
-                    for token in tokens:
-                        send_push_notification_task.delay(token, data.title, data.body)
-                    if tokens:
-                        push_sent = True
+                    send_push_notification_task.delay(user.id, data.title, data.body)
+                    push_sent = True
                 except Exception as exc:
                     logger.warning("FCM push failed for user %s: %s", user.id, exc)
 
@@ -412,9 +410,7 @@ class AdminManagementService:
         """Fire-and-forget FCM + email notification to a single user."""
         try:
             from app.background.tasks import send_push_notification_task
-            tokens = [t.token for t in user.fcm_tokens if t.token]
-            for token in tokens:
-                send_push_notification_task.delay(token, title, body)
+            send_push_notification_task.delay(user.id, title, body)
         except Exception as exc:
             logger.warning("FCM notify failed for user %s: %s", user.id, exc)
 

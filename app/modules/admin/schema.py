@@ -186,6 +186,7 @@ class AdminReviewListItem(BaseModel):
     book_title: str = ""
     reviewer_id: int
     reviewer_name: str = ""
+    reviewer_avatar_url: Optional[str] = None
     reviewee_id: int
     reviewee_name: str = ""
     rating: float
