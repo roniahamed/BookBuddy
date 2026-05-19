@@ -201,3 +201,26 @@ async def confirm_received(
 ):
     service = BorrowService(db)
     return service.confirm_received(request_id, current_user)
+
+
+@router.post(
+    "/{request_id}/cancel",
+    response_model=BorrowStatusUpdateResponse,
+    summary="Cancel borrow request",
+    description=(
+        "Borrower cancels a pending borrow request. "
+        "Status changes to 'cancelled'."
+    ),
+    responses={
+        400: {"description": "Invalid status transition"},
+        403: {"description": "Not the borrower"},
+        404: {"description": "Request not found"},
+    },
+)
+async def cancel_request(
+    request_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = BorrowService(db)
+    return service.cancel_request(request_id, current_user)
