@@ -64,6 +64,7 @@ class AdminUserListItem(BaseModel):
     id: int
     full_name: str
     email: str
+    avatar_url: Optional[str] = None
     role: str
     is_active: bool
     credits: int = 0
@@ -79,6 +80,7 @@ class AdminUserDetailResponse(BaseModel):
     id: int
     full_name: str
     email: str
+    avatar_url: Optional[str] = None
     role: str
     is_active: bool
     credits: int = 0
@@ -141,6 +143,7 @@ class AdminBookListItem(BaseModel):
     owner_id: int
     owner_name: str = ""
     owner_email: str = ""
+    owner_avatar_url: Optional[str] = None
     genre_name: Optional[str] = None
     availability: str
     condition: str
@@ -189,6 +192,7 @@ class AdminReviewListItem(BaseModel):
     reviewer_avatar_url: Optional[str] = None
     reviewee_id: int
     reviewee_name: str = ""
+    reviewee_avatar_url: Optional[str] = None
     rating: float
     review_text: Optional[str] = None
     created_at: Optional[datetime] = None
