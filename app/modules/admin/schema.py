@@ -39,6 +39,26 @@ class AppConfigListResponse(BaseModel):
     items: List[AppConfigResponse] = []
 
 
+# ─── Contact Messages ─────────────────────────────────────
+
+class ContactMessageResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    subject: str
+    message: str
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+class ContactMessageListResponse(BaseModel):
+    items: List[ContactMessageResponse] = []
+    total: int = 0
+    page: int = 1
+    size: int = 20
+    pages: int = 1
+
+
 # ─── Platform Stats ───────────────────────────────────────
 
 class AdminStatsResponse(BaseModel):

@@ -6,13 +6,11 @@ Admin module repository — covers:
 import math
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
-from typing import Optional
-
-from app.modules.admin.model import AppConfig
+from app.modules.admin.model import AppConfig, ContactMessage
 from app.modules.users.model import User
 from app.modules.books.model import Book, Review
 from app.modules.borrowing.model import BorrowRequest
+from app.modules.admin.model import ContactMessage
 
 
 # ─── Existing AppConfig Repository ───────────────────────
@@ -286,3 +284,14 @@ class AdminManagementRepository:
     def get_all_active_users(self) -> list[User]:
         """Get all active users for broadcast notifications."""
         return self.db.query(User).filter(User.is_active == True).all()
+
+    # ── Contact Messages ──────────────────────────────────
+
+    def get_contact_messages(self, page: int = 1, size: int = 20) -> tuple[list[ContactMessage], int]:
+        query = self.db.query(ContactMessage)
+        total = query.count()
+        items = query.order_by(ContactMessage.created_at.desc()).offset((page - 1) * size).limit(size).all()
+        return items, total
+
+    def get_contact_message_by_id(self, message_id: int) -> Optional[ContactMessage]:
+        return self.db.query(ContactMessage).filter(ContactMessage.id == message_id).first()

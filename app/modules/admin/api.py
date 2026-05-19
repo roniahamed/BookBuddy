@@ -46,6 +46,7 @@ from app.modules.admin.schema import (
     AdminBookListResponse, AdminBookUpdateRequest, AdminBookActionResponse,
     AdminReviewListResponse, AdminReviewActionResponse,
     AdminBroadcastNotificationRequest, AdminBroadcastNotificationResponse,
+    ContactMessageListResponse, ContactMessageResponse,
 )
 
 router = APIRouter()
@@ -401,3 +402,36 @@ async def broadcast_notification(
 ):
     service = AdminManagementService(db)
     return service.broadcast_notification(data)
+
+
+# ═══════════════════════════════════════════════════════════
+# CONTACT MESSAGES
+# ═══════════════════════════════════════════════════════════
+
+@router.get(
+    "/contacts",
+    response_model=ContactMessageListResponse,
+    summary="List contact form messages",
+)
+async def list_contact_messages(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Items per page"),
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    service = AdminManagementService(db)
+    return service.list_contact_messages(page, size)
+
+
+@router.get(
+    "/contacts/{message_id}",
+    response_model=ContactMessageResponse,
+    summary="Get single contact message",
+)
+async def get_contact_message(
+    message_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    service = AdminManagementService(db)
+    return service.get_contact_message(message_id)

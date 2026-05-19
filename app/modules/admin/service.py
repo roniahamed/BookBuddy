@@ -17,6 +17,7 @@ from app.modules.admin.schema import (
     AdminBookListItem, AdminBookUpdateRequest, AdminBookActionResponse, AdminBookListResponse,
     AdminReviewListItem, AdminReviewActionResponse, AdminReviewListResponse,
     AdminBroadcastNotificationRequest, AdminBroadcastNotificationResponse,
+    ContactMessageListResponse, ContactMessageResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -423,3 +424,17 @@ class AdminManagementService:
             send_notification_email_task.delay(user.email, title, body, user.full_name)
         except Exception as exc:
             logger.warning("Email notify failed for user %s: %s", user.id, exc)
+
+    # ── Contact Messages ──────────────────────────────────
+
+    def list_contact_messages(self, page: int = 1, size: int = 20) -> ContactMessageListResponse:
+        messages, total = self.repo.get_contact_messages(page, size)
+        items = [ContactMessageResponse.model_validate(m) for m in messages]
+        pages = math.ceil(total / size) if total > 0 else 1
+        return ContactMessageListResponse(items=items, total=total, page=page, size=size, pages=pages)
+
+    def get_contact_message(self, message_id: int) -> ContactMessageResponse:
+        message = self.repo.get_contact_message_by_id(message_id)
+        if not message:
+            raise HTTPException(status_code=404, detail="Contact message not found")
+        return ContactMessageResponse.model_validate(message)
