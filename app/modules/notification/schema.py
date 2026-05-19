@@ -2,7 +2,8 @@
 Notification module schemas.
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 
 
 class NotificationPreferencesResponse(BaseModel):
@@ -24,3 +25,21 @@ class NotificationPreferencesUpdateRequest(BaseModel):
             "new_message_alert": True,
         }
     }}
+
+class NotificationResponse(BaseModel):
+    id: int
+    title: str
+    message: str
+    is_read: bool
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+class NotificationPaginatedResponse(BaseModel):
+    items: List[NotificationResponse] = []
+    total: int = 0
+    page: int = 1
+    per_page: int = 20
+    pages: int = 0
+    has_next: bool = False
+    has_prev: bool = False

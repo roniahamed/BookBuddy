@@ -14,7 +14,10 @@ from app.modules.notification.service import NotificationService
 from app.modules.notification.schema import (
     NotificationPreferencesResponse,
     NotificationPreferencesUpdateRequest,
+    NotificationResponse,
+    NotificationPaginatedResponse,
 )
+from app.shared.pagination import PaginationParams
 
 router = APIRouter()
 
@@ -52,3 +55,43 @@ async def update_preferences(
 ):
     service = NotificationService(db)
     return service.update_preferences(current_user, data)
+
+
+@router.get(
+    "",
+    response_model=NotificationPaginatedResponse,
+    summary="List notifications",
+)
+async def list_notifications(
+    pagination: PaginationParams = Depends(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = NotificationService(db)
+    return service.get_notifications(current_user, pagination)
+
+
+@router.patch(
+    "/read-all",
+    summary="Mark all notifications as read",
+)
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = NotificationService(db)
+    return service.mark_all_read(current_user)
+
+
+@router.get(
+    "/{notification_id}",
+    response_model=NotificationResponse,
+    summary="Get single notification",
+)
+async def get_notification(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = NotificationService(db)
+    return service.get_notification_detail(current_user, notification_id)
