@@ -71,3 +71,26 @@ async def get_current_user_optional(
     repo = AuthRepository(db)
     user = repo.get_user_by_id(int(user_id))
     return user
+
+
+async def get_current_user_ws(token: str, db: Session):
+    """
+    WebSocket authentication — returns user if token is valid, None otherwise.
+    """
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        if user_id is None:
+            return None
+        if token_type and token_type != "access":
+            return None
+    except JWTError:
+        return None
+
+    repo = AuthRepository(db)
+    user = repo.get_user_by_id(int(user_id))
+    return user
