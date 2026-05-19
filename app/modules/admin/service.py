@@ -239,6 +239,8 @@ class AdminManagementService:
                 id=book.id,
                 title=book.title,
                 author_name=book.author_name,
+                front_cover_url=book.front_cover_url,
+                back_cover_url=book.back_cover_url,
                 owner_id=book.owner_id,
                 owner_name=book.owner.full_name if book.owner else "",
                 owner_email=book.owner.email if book.owner else "",

@@ -20,7 +20,7 @@ Covers:
 - GET    /books/{id}/reviews   — Book reviews
 - GET    /users/{id}/reviews   — User community ratings
 """
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, File, UploadFile, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.dependencies import get_db
@@ -206,6 +206,40 @@ async def create_book(
 ):
     service = BookService(db)
     return service.create_book(current_user, data)
+
+
+@router.post(
+    "/upload-image",
+    summary="Upload cover image directly",
+    description="Upload an image file directly (front or back cover) and get a public static URL.",
+)
+async def upload_book_image(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    import uuid
+    import shutil
+    import os
+
+    # Ensure directories exist
+    upload_dir = "static/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate unique filename preserving extension
+    ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    # Save file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Build full URL
+    base_url = str(request.base_url).rstrip("/")
+    file_url = f"{base_url}/static/uploads/{unique_filename}"
+
+    return {"url": file_url}
 
 
 @router.patch(

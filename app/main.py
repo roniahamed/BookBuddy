@@ -186,6 +186,12 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 from app.modules.admin.dashboard import setup_admin
 setup_admin(app)
 
+# 5. Mount Static Files for Uploads
+from fastapi.staticfiles import StaticFiles
+import os
+os.makedirs("static/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # ─── Custom Swagger UI with Username-to-Email visual override ────
 @app.get("/docs", include_in_schema=False)
