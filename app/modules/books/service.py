@@ -11,7 +11,7 @@ from app.modules.books.filters import BookFilters
 from app.modules.books.model import Book
 from app.modules.books.schema import (
     BookListItemResponse, BookDetailResponse, BookCreateRequest, BookUpdateRequest,
-    BookPaginatedResponse, BookOwnerBrief, GenreResponse,
+    BookPaginatedResponse, BookOwnerBrief, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewerBrief, ReviewPaginatedResponse,
     WishlistItemResponse, WishlistPaginatedResponse,
 )
@@ -43,13 +43,14 @@ def _book_to_list_item(
         distance = round(_calc_distance(user_lat, user_lon, book.latitude, book.longitude), 1)
 
     genre = GenreResponse.model_validate(book.genre) if book.genre else None
+    author = AuthorResponse.model_validate(book.author) if book.author else None
     owner = BookOwnerBrief.model_validate(book.owner) if book.owner else None
     is_wishlisted = book.id in wishlisted_ids if wishlisted_ids else False
 
     return BookListItemResponse(
         id=book.id,
         title=book.title,
-        author_name=book.author_name,
+        author=author,
         front_cover_url=book.front_cover_url,
         back_cover_url=book.back_cover_url,
         condition=book.condition,
@@ -142,11 +143,11 @@ class BookService:
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
 
-    def get_recommended_books(self, user: User) -> list[BookListItemResponse]:
+    def get_recommended_books(self, user: User, pagination: PaginationParams) -> BookPaginatedResponse:
         """Recommended for you section on Home page."""
-        books = self.repo.get_recommended_books(user.id)
+        books, total = self.repo.get_recommended_books(user.id, offset=pagination.offset, limit=pagination.per_page)
         wishlisted_ids = self.repo.get_user_wishlisted_book_ids(user.id)
-        return [
+        items = [
             _book_to_list_item(
                 b,
                 user.latitude, user.longitude,
@@ -154,6 +155,12 @@ class BookService:
             )
             for b in books
         ]
+        pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
+        return BookPaginatedResponse(
+            items=items, total=total, page=pagination.page,
+            per_page=pagination.per_page, pages=pages,
+            has_next=pagination.page < pages, has_prev=pagination.page > 1,
+        )
 
     def get_new_arrivals(self, pagination: PaginationParams, current_user: User = None) -> BookPaginatedResponse:
         """New Arrivals filter."""
@@ -186,6 +193,7 @@ class BookService:
             raise HTTPException(status_code=404, detail="Book not found")
 
         genre = GenreResponse.model_validate(book.genre) if book.genre else None
+        author = AuthorResponse.model_validate(book.author) if book.author else None
         owner = BookOwnerBrief.model_validate(book.owner) if book.owner else None
         reviews_count = self.repo.get_reviews_count_for_book(book_id)
 
@@ -201,7 +209,7 @@ class BookService:
         return BookDetailResponse(
             id=book.id,
             title=book.title,
-            author_name=book.author_name,
+            author=author,
             description=book.description,
             front_cover_url=book.front_cover_url,
             back_cover_url=book.back_cover_url,
@@ -276,6 +284,19 @@ class BookService:
         """List all genres for category tabs."""
         genres = self.repo.get_all_genres()
         return [GenreResponse.model_validate(g) for g in genres]
+
+    def create_genre(self, data: GenreCreate) -> GenreResponse:
+        genre = self.repo.get_or_create_genre(data.name)
+        return GenreResponse.model_validate(genre)
+
+    # ─── Authors ─────────────────────────────────────────
+    def get_all_authors(self) -> list[AuthorResponse]:
+        authors = self.repo.get_all_authors()
+        return [AuthorResponse.model_validate(a) for a in authors]
+
+    def create_author(self, data: AuthorCreate) -> AuthorResponse:
+        author = self.repo.get_or_create_author(data.name)
+        return AuthorResponse.model_validate(author)
 
     # ─── Wishlist ────────────────────────────────────────
     def add_to_wishlist(self, user: User, book_id: int) -> dict:
@@ -382,6 +403,8 @@ class BookService:
                 review_text=r.review_text,
                 created_at=r.created_at,
                 reviewer=ReviewerBrief.model_validate(r.reviewer) if r.reviewer else None,
+                book_title=r.book.title if r.book else None,
+                book_id=r.book_id,
             )
             for r in reviews
         ]
@@ -403,6 +426,7 @@ class BookService:
                 created_at=r.created_at,
                 reviewer=ReviewerBrief.model_validate(r.reviewer) if r.reviewer else None,
                 book_title=r.book.title if r.book else None,
+                book_id=r.book_id,
             )
             for r in reviews
         ]

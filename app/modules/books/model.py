@@ -22,6 +22,17 @@ class Genre(Base):
     books = relationship("Book", back_populates="genre")
 
 
+class Author(Base):
+    """Lookup table for book authors."""
+    __tablename__ = "authors"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(255), unique=True, nullable=False, index=True, comment="Author full name")
+
+    # Relationships
+    books = relationship("Book", back_populates="author")
+
+
 class Book(Base):
     """Physical books listed for community sharing. Uploaded via the Upload Book modal."""
     __tablename__ = "books"
@@ -29,8 +40,8 @@ class Book(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     genre_id = Column(Integer, ForeignKey("genres.id", ondelete="SET NULL"), nullable=True, index=True)
+    author_id = Column(Integer, ForeignKey("authors.id", ondelete="SET NULL"), nullable=True, index=True)
     title = Column(String(255), nullable=False, index=True, comment="Book title")
-    author_name = Column(String(255), nullable=False, index=True, comment="Author name (free text)")
     description = Column(Text, nullable=True, comment="Description of the book and its condition")
     front_cover_url = Column(String(500), nullable=True, comment="URL to front cover image")
     back_cover_url = Column(String(500), nullable=True, comment="URL to back cover image")
@@ -47,12 +58,13 @@ class Book(Base):
     # Relationships
     owner = relationship("User", back_populates="books")
     genre = relationship("Genre", back_populates="books")
+    author = relationship("Author", back_populates="books")
     borrow_requests = relationship("BorrowRequest", back_populates="book")
     reviews = relationship("Review", back_populates="book")
     wishlist_entries = relationship("Wishlist", back_populates="book", cascade="all, delete-orphan")
 
     __table_args__ = (
-        Index("idx_books_title_author", "title", "author_name"),
+        Index("idx_books_title_author", "title", "author_id"),
         Index("idx_books_location", "latitude", "longitude"),
         Index("idx_books_availability", "availability"),
     )

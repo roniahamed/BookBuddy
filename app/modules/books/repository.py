@@ -7,7 +7,7 @@ import math
 from typing import Optional, List
 from sqlalchemy.orm import Session, joinedload, Query
 from sqlalchemy import func, case, or_, and_, desc, asc
-from app.modules.books.model import Book, Genre, Wishlist, Review
+from app.modules.books.model import Book, Genre, Wishlist, Review, Author
 from app.modules.users.model import User
 from app.modules.books.filters import BookFilters
 
@@ -48,6 +48,7 @@ class BookRepository:
             .options(
                 joinedload(Book.owner),
                 joinedload(Book.genre),
+                joinedload(Book.author),
             )
         )
 
@@ -64,10 +65,10 @@ class BookRepository:
         # Search (title, author, genre name)
         if filters.search:
             search_term = f"%{filters.search}%"
-            query = query.outerjoin(Genre, Book.genre_id == Genre.id).filter(
+            query = query.outerjoin(Genre, Book.genre_id == Genre.id).outerjoin(Author, Book.author_id == Author.id).filter(
                 or_(
                     Book.title.ilike(search_term),
-                    Book.author_name.ilike(search_term),
+                    Author.name.ilike(search_term),
                     Genre.name.ilike(search_term),
                 )
             )
@@ -145,7 +146,7 @@ class BookRepository:
         books = query.order_by(distance).offset(offset).limit(limit).all()
         return books, total
 
-    def get_recommended_books(self, user_id: int, limit: int = 10) -> list[Book]:
+    def get_recommended_books(self, user_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Book], int]:
         """Recommended books based on user's borrowing history genres."""
         from app.modules.borrowing.model import BorrowRequest
 
@@ -162,27 +163,26 @@ class BookRepository:
         genre_ids = [g[0] for g in borrowed_genre_ids]
 
         if genre_ids:
-            books = (
+            query = (
                 self._base_book_query()
                 .filter(
                     Book.genre_id.in_(genre_ids),
                     Book.owner_id != user_id,
                     Book.availability == "available",
                 )
-                .order_by(desc(Book.avg_rating))
-                .limit(limit)
-                .all()
             )
-            if books:
-                return books
+            total = query.count()
+            if total > 0:
+                books = query.order_by(desc(Book.avg_rating)).offset(offset).limit(limit).all()
+                return books, total
 
-        return (
+        query = (
             self._base_book_query()
             .filter(Book.availability == "available", Book.owner_id != user_id)
-            .order_by(desc(Book.avg_rating), desc(Book.created_at))
-            .limit(limit)
-            .all()
         )
+        total = query.count()
+        books = query.order_by(desc(Book.avg_rating), desc(Book.created_at)).offset(offset).limit(limit).all()
+        return books, total
 
     def get_new_arrivals(self, limit: int = 20, offset: int = 0) -> tuple[list[Book], int]:
         query = self._base_book_query().filter(Book.availability == "available")
@@ -229,6 +229,19 @@ class BookRepository:
             self.db.commit()
             self.db.refresh(genre)
         return genre
+
+    # ─── Authors ─────────────────────────────────────────
+    def get_all_authors(self) -> list[Author]:
+        return self.db.query(Author).order_by(Author.name).all()
+
+    def get_or_create_author(self, name: str) -> Author:
+        author = self.db.query(Author).filter(Author.name == name).first()
+        if not author:
+            author = Author(name=name)
+            self.db.add(author)
+            self.db.commit()
+            self.db.refresh(author)
+        return author
 
     # ─── Wishlist ────────────────────────────────────────
     def get_wishlist(self, user_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Wishlist], int]:

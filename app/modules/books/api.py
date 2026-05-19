@@ -31,7 +31,7 @@ from app.modules.books.filters import BookFilters
 from app.modules.books.schema import (
     BookListItemResponse, BookDetailResponse,
     BookCreateRequest, BookUpdateRequest,
-    BookPaginatedResponse, GenreResponse,
+    BookPaginatedResponse, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewPaginatedResponse,
 )
 from app.shared.pagination import PaginationParams
@@ -39,6 +39,7 @@ from app.shared.pagination import PaginationParams
 router = APIRouter()
 review_router = APIRouter()
 genre_router = APIRouter()
+author_router = APIRouter()
 
 
 # ─── Browse & Discovery ─────────────────────────────────
@@ -88,7 +89,7 @@ async def get_nearby_books(
 
 @router.get(
     "/recommended",
-    response_model=List[BookListItemResponse],
+    response_model=BookPaginatedResponse,
     summary="Recommended for you",
     description=(
         "Get personalized book recommendations based on the user's borrowing history. "
@@ -97,11 +98,12 @@ async def get_nearby_books(
     ),
 )
 async def get_recommended_books(
+    pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = BookService(db)
-    return service.get_recommended_books(current_user)
+    return service.get_recommended_books(current_user, pagination)
 
 
 @router.get(
@@ -378,7 +380,7 @@ async def translate_book(
     result = translate_book_fields(
         title=book.title,
         description=book.description,
-        author_name=book.author_name,
+        author_name=book.author.name if book.author else "",
         target_lang=target_lang,
     )
     result["book_id"] = book_id
@@ -438,3 +440,45 @@ async def submit_review(
 async def list_genres(db: Session = Depends(get_db)):
     service = BookService(db)
     return service.get_all_genres()
+
+
+@genre_router.post(
+    "",
+    response_model=GenreResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a category (genre)",
+)
+async def create_genre(
+    data: GenreCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = BookService(db)
+    return service.create_genre(data)
+
+
+# ─── Authors Router ──────────────────────────────────────
+
+@author_router.get(
+    "",
+    response_model=List[AuthorResponse],
+    summary="List all authors",
+)
+async def list_authors(db: Session = Depends(get_db)):
+    service = BookService(db)
+    return service.get_all_authors()
+
+
+@author_router.post(
+    "",
+    response_model=AuthorResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an author",
+)
+async def create_author(
+    data: AuthorCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = BookService(db)
+    return service.create_author(data)
