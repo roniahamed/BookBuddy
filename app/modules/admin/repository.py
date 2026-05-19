@@ -6,11 +6,13 @@ Admin module repository — covers:
 import math
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, or_
+from typing import Optional
+
 from app.modules.admin.model import AppConfig, ContactMessage
 from app.modules.users.model import User
 from app.modules.books.model import Book, Review
 from app.modules.borrowing.model import BorrowRequest
-from app.modules.admin.model import ContactMessage
 
 
 # ─── Existing AppConfig Repository ───────────────────────
