@@ -22,10 +22,11 @@ from app.router import api_router
 # ─── Import ALL models so Base.metadata.create_all() creates all tables ───
 from app.modules.users.model import User, UserSettings, UserFCMToken
 from app.modules.auth.model import PasswordResetToken
-from app.modules.books.model import Book, Genre, Wishlist, Review
+from app.modules.books.model import Book, Genre, Wishlist, Review, Author
 from app.modules.borrowing.model import BorrowRequest
 from app.modules.chat.model import Conversation, Message
-from app.modules.admin.model import AppConfig
+from app.modules.admin.model import AppConfig, ContactMessage
+from app.modules.notification.model import Notification
 
 # 1. Setup Logging
 setup_logging()
@@ -290,7 +291,17 @@ class ContactResponse(BaseModel):
     summary="Submit contact form",
     description="Submit an inquiry via the Contact page.",
 )
-async def submit_contact(data: ContactRequest):
+async def submit_contact(data: ContactRequest, db: Session = Depends(get_db)):
+    # Save to database
+    message = ContactMessage(
+        name=data.name,
+        email=data.email,
+        subject=data.subject,
+        message=data.message
+    )
+    db.add(message)
+    db.commit()
+
     # Send via Celery background task
     try:
         from app.background.tasks import send_notification_email_task
