@@ -11,10 +11,10 @@ Covers:
 - PATCH  /conversations/{id}/read        — Mark all messages as read
 - PATCH  /conversations/{id}/archive     — Archive conversation
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from app.core.dependencies import get_db
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, get_current_user_ws
 from app.modules.users.model import User
 from app.modules.chat.service import ChatService
 from app.modules.chat.schema import (
@@ -183,3 +183,71 @@ async def archive_conversation(
 ):
     service = ChatService(db)
     return service.archive_conversation(conversation_id, current_user)
+
+# ─── WebSocket Endpoint ──────────────────────────────────
+
+class ConnectionManager:
+    def __init__(self):
+        # Maps conversation_id to list of active WebSockets
+        self.active_connections: dict[int, list[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, conversation_id: int):
+        await websocket.accept()
+        if conversation_id not in self.active_connections:
+            self.active_connections[conversation_id] = []
+        self.active_connections[conversation_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, conversation_id: int):
+        if conversation_id in self.active_connections:
+            self.active_connections[conversation_id].remove(websocket)
+            if not self.active_connections[conversation_id]:
+                del self.active_connections[conversation_id]
+
+    async def broadcast_to_conversation(self, message: dict, conversation_id: int):
+        if conversation_id in self.active_connections:
+            for connection in self.active_connections[conversation_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+manager = ConnectionManager()
+
+@router.websocket("/{conversation_id}/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    conversation_id: int,
+    db: Session = Depends(get_db),
+):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+    
+    current_user = await get_current_user_ws(token, db)
+    if not current_user:
+        await websocket.close(code=1008)
+        return
+
+    # Verify participant
+    service = ChatService(db)
+    try:
+        service.get_conversation(conversation_id, current_user)
+    except Exception:
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(websocket, conversation_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # User sends a text message
+            req = MessageCreateRequest(content=data)
+            # Use service to persist message
+            # Create a fresh db session or use the injected one
+            msg = service.send_message(conversation_id, current_user, req)
+            
+            # Broadcast to all connected clients in this conversation
+            await manager.broadcast_to_conversation(msg.model_dump(mode="json"), conversation_id)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, conversation_id)
