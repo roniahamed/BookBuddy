@@ -162,6 +162,8 @@ class AdminManagementService:
         user = self.repo.get_user_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+        if user_id == admin_user.id:
+            raise HTTPException(status_code=400, detail="You cannot suspend your own account.")
         if user.role == "admin":
             raise HTTPException(status_code=403, detail="Cannot suspend another admin")
         if not user.is_active:

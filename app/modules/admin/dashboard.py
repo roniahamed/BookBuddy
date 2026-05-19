@@ -59,6 +59,13 @@ class UserAdmin(ModelView, model=User):
     name_plural = "Users"
     icon = "fa-solid fa-user"
 
+    async def on_model_change(self, data: dict, model: User, is_created: bool, request: Request) -> None:
+        if "is_active" in data and not data["is_active"]:
+            admin_email = request.session.get("admin_email")
+            if admin_email and model.email == admin_email:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
+
 class UserSettingsAdmin(ModelView, model=UserSettings):
     column_list = [UserSettings.user_id, UserSettings.language, UserSettings.email_notifications, UserSettings.new_message_alert]
     name = "User Settings"
