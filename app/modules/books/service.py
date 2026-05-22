@@ -452,6 +452,8 @@ class BookService:
                 location=user.location,
                 avg_rating=user.avg_rating or 0.0,
             ),
+            book_title=book.title,
+            book_id=book.id,
         )
 
     def get_book_reviews(self, book_id: int, pagination: PaginationParams) -> ReviewPaginatedResponse:

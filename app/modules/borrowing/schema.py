@@ -13,7 +13,7 @@ class BorrowBookBrief(BaseModel):
     """Brief book info shown on Borrowed/Lent Out cards."""
     id: int
     title: str
-    author_name: str
+    author_name: Optional[str] = None
     front_cover_url: Optional[str] = None
     description: Optional[str] = None
     avg_rating: float = 0.0

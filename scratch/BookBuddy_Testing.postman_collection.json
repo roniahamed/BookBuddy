@@ -1,0 +1,874 @@
+{
+  "info": {
+    "name": "BookBuddy — Borrowing & Chat Testing",
+    "_postman_id": "bookbuddy-testing-v1",
+    "description": "Complete end-to-end test flows for Book Borrowing and Chat system.\n\n## Setup\n1. Import this collection\n2. Create an Environment called **BookBuddy Local** with variable `base_url` = `http://localhost:8001/api/v1`\n3. Make sure you have at least 2 registered users (owner + borrower)\n4. Run requests in order — scripts auto-chain IDs between requests\n\n## Flows\n- **Flow 1: Book Borrowing** — Upload → Request → Approve → Return → Review\n- **Flow 2: Chat** — Start conversation → Send messages → Mark read → Archive",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8001/api/v1" },
+    { "key": "owner_token", "value": "" },
+    { "key": "borrower_token", "value": "" },
+    { "key": "book_id", "value": "" },
+    { "key": "borrow_request_id", "value": "" },
+    { "key": "conversation_id", "value": "" },
+    { "key": "owner_id", "value": "" },
+    { "key": "borrower_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "description": "Login as Owner and Borrower — tokens are saved automatically for all subsequent requests.",
+      "item": [
+        {
+          "name": "[Owner] Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Owner login successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.access_token).to.be.a('string');",
+                  "    pm.collectionVariables.set('owner_token', json.access_token);",
+                  "    pm.collectionVariables.set('owner_id', json.user.id);",
+                  "    console.log('✅ Owner logged in | ID:', json.user.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"owner@bookbuddy.com\",\n  \"password\": \"YourOwnerPass123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "⚠️ Change email/password to a real owner account. Token is saved to `owner_token` variable automatically."
+          }
+        },
+        {
+          "name": "[Borrower] Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Borrower login successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.access_token).to.be.a('string');",
+                  "    pm.collectionVariables.set('borrower_token', json.access_token);",
+                  "    pm.collectionVariables.set('borrower_id', json.user.id);",
+                  "    console.log('✅ Borrower logged in | ID:', json.user.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"borrower@bookbuddy.com\",\n  \"password\": \"YourBorrowerPass123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "description": "⚠️ Change email/password to a different user account (the one who will borrow). Token saved to `borrower_token`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Flow 1 — Book Borrowing",
+      "description": "Complete borrowing lifecycle:\nUpload → Browse → Request → Approve → Return → Confirm → Review\n\nRun requests in order 1 → 12.",
+      "item": [
+        {
+          "name": "1. [Owner] Upload a Book",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const token = pm.collectionVariables.get('owner_token');",
+                  "if (!token) { console.warn('⚠️  owner_token is empty — run [Owner] Login first!'); }"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Book created (201)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Book has ID', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.collectionVariables.set('book_id', json.id);",
+                  "    console.log('✅ Book created | ID:', json.id, '| Title:', json.title);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Great Gatsby\",\n  \"description\": \"A classic novel about the American Dream. Book is in excellent condition.\",\n  \"condition\": \"Good\",\n  \"borrow_duration_days\": 14,\n  \"location\": \"Dhaka, Bangladesh\",\n  \"latitude\": 23.8103,\n  \"longitude\": 90.4125\n}"
+            },
+            "url": { "raw": "{{base_url}}/books", "host": ["{{base_url}}"], "path": ["books"] },
+            "description": "Owner uploads a book. The returned `book_id` is auto-saved for subsequent requests."
+          }
+        },
+        {
+          "name": "2. [Borrower] Browse Books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Browse returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Items array exists', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.items).to.be.an('array');",
+                  "    console.log('📚 Total available books:', json.total);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books?availability=available&sort_by=newest",
+              "host": ["{{base_url}}"],
+              "path": ["books"],
+              "query": [
+                { "key": "availability", "value": "available" },
+                { "key": "sort_by", "value": "newest" }
+              ]
+            },
+            "description": "Borrower browses available books. The newest book (just uploaded) should appear at top."
+          }
+        },
+        {
+          "name": "3. [Borrower] Get Book Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Book detail returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Book detail has owner', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.owner).to.not.be.null;",
+                  "    console.log('📖 Book:', json.title, '| Owner:', json.owner.full_name, '| Condition:', json.condition);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/books/{{book_id}}", "host": ["{{base_url}}"], "path": ["books", "{{book_id}}"] },
+            "description": "View full details of the uploaded book. Includes owner info, rating, condition."
+          }
+        },
+        {
+          "name": "4. [Borrower] Add to Wishlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Added to wishlist (201)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    console.log('❤️  Book added to wishlist');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/books/{{book_id}}/wishlist", "host": ["{{base_url}}"], "path": ["books", "{{book_id}}", "wishlist"] },
+            "description": "Optional step — borrower saves book to wishlist."
+          }
+        },
+        {
+          "name": "5. [Borrower] Send Borrow Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Borrow request created (201)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Request has ID and pending status', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.expect(json.status).to.equal('pending');",
+                  "    pm.collectionVariables.set('borrow_request_id', json.id);",
+                  "    console.log('📨 Borrow request sent | ID:', json.id, '| Status:', json.status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"book_id\": {{book_id}},\n  \"message\": \"Hi! I'd love to borrow this book. I'll take great care of it!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/borrow-requests", "host": ["{{base_url}}"], "path": ["borrow-requests"] },
+            "description": "Borrower requests to borrow the book. `borrow_request_id` is saved automatically."
+          }
+        },
+        {
+          "name": "6. [Owner] View Incoming Requests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lent-out requests return 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Pending request is in the list', function () {",
+                  "    const json = pm.response.json();",
+                  "    const requestId = parseInt(pm.collectionVariables.get('borrow_request_id'));",
+                  "    const found = json.items.some(r => r.id === requestId);",
+                  "    pm.expect(found).to.be.true;",
+                  "    console.log('📋 Borrow request found in lent-out list');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/borrow-requests/lent-out", "host": ["{{base_url}}"], "path": ["borrow-requests", "lent-out"] },
+            "description": "Owner sees all incoming borrow requests for their books."
+          }
+        },
+        {
+          "name": "7. [Owner] Approve Borrow Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Request approved (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Status is now active', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('active');",
+                  "    console.log('✅ Borrow request approved | Status:', json.status, '| Due:', json.due_date);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/borrow-requests/{{borrow_request_id}}/approve", "host": ["{{base_url}}"], "path": ["borrow-requests", "{{borrow_request_id}}", "approve"] },
+            "description": "Owner approves the borrow request. Book status changes to `borrowed`, request to `active`."
+          }
+        },
+        {
+          "name": "8. [Borrower] Check Active Borrowings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Active borrowings return 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Active borrow exists in list', function () {",
+                  "    const json = pm.response.json();",
+                  "    const requestId = parseInt(pm.collectionVariables.get('borrow_request_id'));",
+                  "    const found = json.items.some(r => r.id === requestId && r.status === 'active');",
+                  "    pm.expect(found).to.be.true;",
+                  "    console.log('📦 Active borrow confirmed');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/borrow-requests/borrowed", "host": ["{{base_url}}"], "path": ["borrow-requests", "borrowed"] },
+            "description": "Borrower checks their active borrowings. The approved request should appear here."
+          }
+        },
+        {
+          "name": "9. [Borrower] Return Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Return marked (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Status is returned', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('returned');",
+                  "    console.log('📬 Book returned by borrower | Status:', json.status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/borrow-requests/{{borrow_request_id}}/return", "host": ["{{base_url}}"], "path": ["borrow-requests", "{{borrow_request_id}}", "return"] },
+            "description": "Borrower marks the book as returned. Waiting for owner confirmation."
+          }
+        },
+        {
+          "name": "10. [Owner] Confirm Return",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Return confirmed (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Status is confirmed', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('confirmed');",
+                  "    console.log('✅ Owner confirmed return | Status:', json.status);",
+                  "    console.log('💡 Book is now available again. Both users can submit a review!');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/borrow-requests/{{borrow_request_id}}/confirm", "host": ["{{base_url}}"], "path": ["borrow-requests", "{{borrow_request_id}}", "confirm"] },
+            "description": "Owner confirms the book has been returned. Book becomes `available` again. Credits awarded."
+          }
+        },
+        {
+          "name": "11. [Borrower] Submit Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Review submitted (201)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Review has rating', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.rating).to.be.a('number');",
+                  "    console.log('⭐ Review submitted | Rating:', json.rating, '/5');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"borrow_request_id\": {{borrow_request_id}},\n  \"rating\": 4.8,\n  \"review_text\": \"Great experience! The owner was prompt and the book was in perfect condition. Highly recommended!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/reviews", "host": ["{{base_url}}"], "path": ["reviews"] },
+            "description": "Borrower reviews the lender (owner). Only possible after status is `returned` or `confirmed`."
+          }
+        },
+        {
+          "name": "12. Verify Book Reviews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reviews fetch 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Review count > 0 for this book', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.total).to.be.greaterThan(0);",
+                  "    console.log('⭐ Reviews for this book:', json.total);",
+                  "    console.log('   Latest:', json.items[0]?.rating, '/5 —', json.items[0]?.review_text?.slice(0, 60));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/reviews?book_id={{book_id}}", "host": ["{{base_url}}"], "path": ["reviews"], "query": [{ "key": "book_id", "value": "{{book_id}}" }] },
+            "description": "Verify the submitted review appears under this book. Uses the new `?book_id=` filter."
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Flow 2 — Chat System",
+      "description": "Complete chat flow:\nStart conversation → Send messages → Reply → Mark read → Unread count → Archive\n\nRun requests in order 1 → 8.\nPre-requisite: owner_token and borrower_token must be set (run Auth section first).",
+      "item": [
+        {
+          "name": "1. [Borrower] Start Conversation with Owner",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ownerId = pm.collectionVariables.get('owner_id');",
+                  "if (!ownerId) {",
+                  "    console.warn('⚠️  owner_id not set — run [Owner] Login first!');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation created (200 or 201)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test('Conversation has ID', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.collectionVariables.set('conversation_id', json.id);",
+                  "    console.log('💬 Conversation started | ID:', json.id);",
+                  "    console.log('   With user:', json.other_user?.full_name);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participant_id\": {{owner_id}},\n  \"initial_message\": \"Hi! I saw your book listing. Is it still available to borrow?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/conversations", "host": ["{{base_url}}"], "path": ["conversations"] },
+            "description": "Borrower starts a conversation with the owner. `book_id` is optional — this is a user-to-user chat.\n\nIf a conversation already exists, it returns the existing one (idempotent).\n\n`conversation_id` is saved automatically."
+          }
+        },
+        {
+          "name": "2. [Borrower] Send a Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Message sent (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Message has body', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.body).to.be.a('string');",
+                  "    pm.expect(json.is_read).to.be.false;",
+                  "    console.log('💬 Message sent | ID:', json.id, '| Preview:', json.body.slice(0, 50));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"I would like to borrow The Great Gatsby. When can I pick it up?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}/messages", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}", "messages"] },
+            "description": "Borrower sends a message inside the conversation. Message is stored encrypted in DB."
+          }
+        },
+        {
+          "name": "3. [Owner] Get Conversation Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation details return 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Other user is borrower', function () {",
+                  "    const json = pm.response.json();",
+                  "    const borrowerId = parseInt(pm.collectionVariables.get('borrower_id'));",
+                  "    pm.expect(json.other_user.id).to.equal(borrowerId);",
+                  "    console.log('📋 Conversation:', json.id, '| With:', json.other_user.full_name);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}"] },
+            "description": "Owner views conversation detail. The other_user should be the borrower."
+          }
+        },
+        {
+          "name": "4. [Owner] Get Messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Messages return 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Unread messages exist from borrower', function () {",
+                  "    const json = pm.response.json();",
+                  "    const unread = json.items.filter(m => !m.is_read);",
+                  "    console.log('📨 Total messages:', json.total, '| Unread:', unread.length);",
+                  "    json.items.forEach(m => {",
+                  "        console.log(`  [${m.is_read ? '✓READ' : '⬤UNREAD'}] ${m.sender.full_name}: ${m.body.slice(0,60)}`);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}/messages", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}", "messages"] },
+            "description": "Owner reads all messages. Messages are decrypted before returning."
+          }
+        },
+        {
+          "name": "5. [Owner] Reply to Borrower",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reply sent (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Reply has correct sender', function () {",
+                  "    const json = pm.response.json();",
+                  "    const ownerId = parseInt(pm.collectionVariables.get('owner_id'));",
+                  "    pm.expect(json.sender.id).to.equal(ownerId);",
+                  "    console.log('💬 Owner replied:', json.body.slice(0, 60));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Sure! The book is available. You can pick it up Saturday morning at 10am. Does that work for you?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}/messages", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}", "messages"] },
+            "description": "Owner sends a reply. This also triggers a push notification to the borrower (if FCM configured)."
+          }
+        },
+        {
+          "name": "6. [Owner] Mark Messages as Read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Mark read returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Messages marked', function () {",
+                  "    const json = pm.response.json();",
+                  "    console.log('✅', json.message);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}/read", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}", "read"] },
+            "description": "Owner marks all borrower's messages as read. Clears unread badge for this conversation."
+          }
+        },
+        {
+          "name": "7. [Owner] Check Unread Count",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unread count returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Unread count is a number', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.unread_count).to.be.a('number');",
+                  "    console.log('🔔 Owner unread count:', json.unread_count, '(should be 0 after mark-read)');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/unread-count", "host": ["{{base_url}}"], "path": ["conversations", "unread-count"] },
+            "description": "Owner checks total unread messages across all conversations (notification badge). Should be 0 after step 6."
+          }
+        },
+        {
+          "name": "8. [Owner] List All Conversations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Conversation list returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Test conversation appears in list', function () {",
+                  "    const json = pm.response.json();",
+                  "    const convId = parseInt(pm.collectionVariables.get('conversation_id'));",
+                  "    const found = json.items.some(c => c.id === convId);",
+                  "    pm.expect(found).to.be.true;",
+                  "    const conv = json.items.find(c => c.id === convId);",
+                  "    console.log('💬 Conversation found in list');",
+                  "    console.log('   Last message:', conv?.last_message?.slice(0, 60));",
+                  "    console.log('   Unread:', conv?.unread_count);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{owner_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations?filter_type=all",
+              "host": ["{{base_url}}"],
+              "path": ["conversations"],
+              "query": [{ "key": "filter_type", "value": "all" }]
+            },
+            "description": "List all conversations. filter_type options: `all` | `unread` | `archive`"
+          }
+        },
+        {
+          "name": "9. [Borrower] Archive Conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Archive returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Archived successfully', function () {",
+                  "    const json = pm.response.json();",
+                  "    console.log('🗂️ ', json.message);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}/archive", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}", "archive"] },
+            "description": "Borrower archives the conversation. It moves to the Archive tab (`filter_type=archive`)."
+          }
+        },
+        {
+          "name": "10. [Borrower] Verify Archived",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Archive list returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Conversation appears in archive tab', function () {",
+                  "    const json = pm.response.json();",
+                  "    const convId = parseInt(pm.collectionVariables.get('conversation_id'));",
+                  "    const found = json.items.some(c => c.id === convId);",
+                  "    pm.expect(found).to.be.true;",
+                  "    console.log('🗂️  Conversation confirmed in archive');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversations?filter_type=archive",
+              "host": ["{{base_url}}"],
+              "path": ["conversations"],
+              "query": [{ "key": "filter_type", "value": "archive" }]
+            },
+            "description": "Verify the conversation now appears in the archive tab."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 WebSocket Info",
+      "description": "WebSocket real-time messaging info (cannot be tested in Postman directly — use a dedicated WS client).",
+      "item": [
+        {
+          "name": "WebSocket Connection Info (GET — shows token)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const convId = pm.collectionVariables.get('conversation_id');",
+                  "const token = pm.collectionVariables.get('borrower_token');",
+                  "console.log('');",
+                  "console.log('═══════════════════════════════════════════');",
+                  "console.log('  WebSocket URL (copy to a WS client):');",
+                  "console.log(`  ws://localhost:8001/api/v1/conversations/${convId}/ws?token=${token}`);",
+                  "console.log('');",
+                  "console.log('  Send messages as JSON text:');",
+                  "console.log('  Hello! This is a realtime message');",
+                  "console.log('═══════════════════════════════════════════');",
+                  "console.log('');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const convId = pm.collectionVariables.get('conversation_id');",
+                  "const token = pm.collectionVariables.get('borrower_token');",
+                  "console.log('WebSocket URL:');",
+                  "console.log(`ws://localhost:8001/api/v1/conversations/${convId}/ws?token=${token}`);",
+                  "pm.test.skip('WebSocket — test in a WS client like Postman WS, websocat, or browser console');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{borrower_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/conversations/{{conversation_id}}", "host": ["{{base_url}}"], "path": ["conversations", "{{conversation_id}}"] },
+            "description": "⚠️ This request just shows you the WebSocket URL in the Postman console.\n\nTo test WebSocket real-time messaging:\n1. Open Postman → New → WebSocket\n2. URL: `ws://localhost:8001/api/v1/conversations/{{conversation_id}}/ws?token={{borrower_token}}`\n3. Click Connect\n4. Send text message (just raw text, not JSON)\n5. Open another Postman WS tab as owner, connect to same URL with owner token\n6. Messages will appear in real-time on both sides\n\nOR use terminal:\n```bash\nnpx wscat -c \"ws://localhost:8001/api/v1/conversations/1/ws?token=eyJ...\"\n```"
+          }
+        }
+      ]
+    }
+  ]
+}
