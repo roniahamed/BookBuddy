@@ -20,6 +20,7 @@ class ChatRepository:
         filter_type: str = "all",
         offset: int = 0,
         limit: int = 20,
+        other_user_id: int = None,
     ) -> tuple[list[dict], int]:
         """Get conversation list with last message and unread count."""
         query = (
@@ -36,6 +37,13 @@ class ChatRepository:
                 )
             )
         )
+        if other_user_id:
+            query = query.filter(
+                or_(
+                    Conversation.participant_1 == other_user_id,
+                    Conversation.participant_2 == other_user_id,
+                )
+            )
 
         if filter_type == "unread":
             unread_subquery = (

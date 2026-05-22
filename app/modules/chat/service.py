@@ -22,30 +22,36 @@ class ChatService:
         self.repo = ChatRepository(db)
         self.db = db
 
-    def _get_other_user(self, conv, current_user_id: int) -> ChatUserBrief | None:
+    def _get_participants(self, conv, current_user_id: int):
         if conv.participant_1 == current_user_id:
-            user = conv.participant_2_user
+            current = conv.participant_1_user
+            other = conv.participant_2_user
         else:
-            user = conv.participant_1_user
-        if user:
-            return ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url)
-        return None
+            current = conv.participant_2_user
+            other = conv.participant_1_user
+            
+        me = ChatUserBrief(id=current.id, full_name=current.full_name, avatar_url=current.avatar_url) if current else None
+        other_user = ChatUserBrief(id=other.id, full_name=other.full_name, avatar_url=other.avatar_url) if other else None
+        return me, other_user
 
     def list_conversations(
-        self, user: User, filter_type: str, pagination: PaginationParams
+        self, user: User, filter_type: str, pagination: PaginationParams, other_user_id: int = None
     ) -> ConversationListResponse:
         results, total = self.repo.get_conversations(
-            user.id, filter_type, pagination.offset, pagination.per_page
+            user.id, filter_type, pagination.offset, pagination.per_page, other_user_id
         )
 
         items = []
         for r in results:
             conv = r["conversation"]
+            me, other_user = self._get_participants(conv, user.id)
             items.append(ConversationResponse(
                 id=conv.id,
-                other_user=self._get_other_user(conv, user.id),
+                me=me,
+                other_user=other_user,
                 book_id=conv.book_id,
                 book_title=conv.book.title if conv.book else None,
+                book_image=conv.book.front_cover_url if conv.book else None,
                 last_message=r["last_message"],  # Already decrypted in repo
                 last_message_at=conv.last_message_at,
                 unread_count=r["unread_count"],
@@ -88,11 +94,14 @@ class ChatService:
                 self.repo.send_message(conv.id, user.id, data.initial_message)
                 self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
 
+            me, other_user = self._get_participants(conv, user.id)
             return ConversationResponse(
                 id=conv.id,
-                other_user=self._get_other_user(conv, user.id),
+                me=me,
+                other_user=other_user,
                 book_id=conv.book_id,
                 book_title=conv.book.title if conv.book else None,
+                book_image=conv.book.front_cover_url if conv.book else None,
                 last_message=data.initial_message,
                 last_message_at=conv.last_message_at,
                 unread_count=0,
@@ -106,11 +115,14 @@ class ChatService:
             self.repo.send_message(conv.id, user.id, data.initial_message)
             self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
 
+        sender, receiver = self._get_participants(conv, user.id)
         return ConversationResponse(
             id=conv.id,
-            other_user=self._get_other_user(conv, user.id),
+            sender=sender,
+            receiver=receiver,
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
+            book_image=conv.book.front_cover_url if conv.book else None,
             last_message=data.initial_message,
             last_message_at=conv.last_message_at,
             unread_count=0,
@@ -124,11 +136,14 @@ class ChatService:
         if conv.participant_1 != user.id and conv.participant_2 != user.id:
             raise HTTPException(status_code=403, detail="Access denied")
 
+        sender, receiver = self._get_participants(conv, user.id)
         return ConversationResponse(
             id=conv.id,
-            other_user=self._get_other_user(conv, user.id),
+            sender=sender,
+            receiver=receiver,
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
+            book_image=conv.book.front_cover_url if conv.book else None,
             last_message_at=conv.last_message_at,
             created_at=conv.created_at,
         )
@@ -143,21 +158,39 @@ class ChatService:
         # Returns decrypted message dicts
         messages, total = self.repo.get_messages(conv_id, pagination.offset, pagination.per_page)
 
-        items = [
-            MessageResponse(
+        current_user_brief = ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url)
+        other_user_model = conv.participant_2_user if conv.participant_1 == user.id else conv.participant_1_user
+        other_user_brief = ChatUserBrief(id=other_user_model.id, full_name=other_user_model.full_name, avatar_url=other_user_model.avatar_url) if other_user_model else None
+
+        items = []
+        for m in messages:
+            msg_sender = None
+            msg_receiver = None
+            if m["sender"]:
+                if m["sender"].id == user.id:
+                    msg_sender = current_user_brief
+                    msg_receiver = other_user_brief
+                else:
+                    msg_sender = other_user_brief
+                    msg_receiver = current_user_brief
+
+            items.append(MessageResponse(
                 id=m["id"],
                 conversation_id=conv_id,
-                sender=ChatUserBrief(id=m["sender"].id, full_name=m["sender"].full_name, avatar_url=m["sender"].avatar_url) if m["sender"] else None,
+                sender=msg_sender,
+                receiver=msg_receiver,
                 body=m["body"],  # Decrypted plaintext
                 is_read=m["is_read"],
                 sent_at=m["sent_at"],
-            )
-            for m in messages
-        ]
+            ))
 
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
         return MessageListResponse(
-            items=items, total=total, page=pagination.page,
+            items=items, 
+            book_id=conv.book_id,
+            book_title=conv.book.title if conv.book else None,
+            book_image=conv.book.front_cover_url if conv.book else None,
+            total=total, page=pagination.page,
             per_page=pagination.per_page, pages=pages,
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
