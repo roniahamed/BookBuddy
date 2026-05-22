@@ -94,8 +94,12 @@ class BookService:
         if current_user:
             wishlisted_ids = self.repo.get_user_wishlisted_book_ids(current_user.id)
 
+        # Prefer query-param location; fall back to authenticated user's stored location
+        user_lat = filters.user_lat or (current_user.latitude if current_user else None)
+        user_lon = filters.user_lon or (current_user.longitude if current_user else None)
+
         items = [
-            _book_to_list_item(b, filters.user_lat, filters.user_lon, wishlisted_ids)
+            _book_to_list_item(b, user_lat, user_lon, wishlisted_ids)
             for b in books
         ]
 
@@ -167,7 +171,12 @@ class BookService:
         """New Arrivals filter."""
         books, total = self.repo.get_new_arrivals(limit=pagination.per_page, offset=pagination.offset)
         wishlisted_ids = self.repo.get_user_wishlisted_book_ids(current_user.id) if current_user else set()
-        items = [_book_to_list_item(b, wishlisted_ids=wishlisted_ids) for b in books]
+        user_lat = current_user.latitude if current_user else None
+        user_lon = current_user.longitude if current_user else None
+        items = [
+            _book_to_list_item(b, user_lat, user_lon, wishlisted_ids)
+            for b in books
+        ]
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
         return BookPaginatedResponse(
             items=items, total=total, page=pagination.page,
@@ -179,7 +188,12 @@ class BookService:
         """Top Rated filter."""
         books, total = self.repo.get_top_rated(limit=pagination.per_page, offset=pagination.offset)
         wishlisted_ids = self.repo.get_user_wishlisted_book_ids(current_user.id) if current_user else set()
-        items = [_book_to_list_item(b, wishlisted_ids=wishlisted_ids) for b in books]
+        user_lat = current_user.latitude if current_user else None
+        user_lon = current_user.longitude if current_user else None
+        items = [
+            _book_to_list_item(b, user_lat, user_lon, wishlisted_ids)
+            for b in books
+        ]
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
         return BookPaginatedResponse(
             items=items, total=total, page=pagination.page,
@@ -261,7 +275,11 @@ class BookService:
     def get_my_books(self, user: User, pagination: PaginationParams) -> BookPaginatedResponse:
         """My Book tab on Profile screen."""
         books, total = self.repo.get_books_by_owner(user.id, pagination.offset, pagination.per_page)
-        items = [_book_to_list_item(b) for b in books]
+        wishlisted_ids = self.repo.get_user_wishlisted_book_ids(user.id)
+        items = [
+            _book_to_list_item(b, user.latitude, user.longitude, wishlisted_ids)
+            for b in books
+        ]
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
         return BookPaginatedResponse(
             items=items, total=total, page=pagination.page,
@@ -269,10 +287,18 @@ class BookService:
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
 
-    def get_user_books(self, user_id: int, pagination: PaginationParams) -> BookPaginatedResponse:
+    def get_user_books(
+        self, user_id: int, pagination: PaginationParams, viewer: User = None
+    ) -> BookPaginatedResponse:
         """All Books tab on Other People Profile."""
         books, total = self.repo.get_books_by_owner(user_id, pagination.offset, pagination.per_page)
-        items = [_book_to_list_item(b) for b in books]
+        viewer_lat = viewer.latitude if viewer else None
+        viewer_lon = viewer.longitude if viewer else None
+        wishlisted_ids = self.repo.get_user_wishlisted_book_ids(viewer.id) if viewer else set()
+        items = [
+            _book_to_list_item(b, viewer_lat, viewer_lon, wishlisted_ids)
+            for b in books
+        ]
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
         return BookPaginatedResponse(
             items=items, total=total, page=pagination.page,
@@ -355,8 +381,10 @@ class BookService:
     def get_my_wishlist(self, user: User, pagination: PaginationParams) -> BookPaginatedResponse:
         """Wishlist tab on Profile screen."""
         items, total = self.repo.get_wishlist(user.id, pagination.offset, pagination.per_page)
+        # All wishlist items are wishlisted by definition
+        wishlisted_ids = {item.book_id for item in items}
         book_items = [
-            _book_to_list_item(item.book, wishlisted_ids={item.book_id})
+            _book_to_list_item(item.book, user.latitude, user.longitude, wishlisted_ids)
             for item in items
         ]
         pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
