@@ -310,7 +310,7 @@ class BookRepository:
 
     # ─── Reviews ─────────────────────────────────────────
     def get_all_reviews(
-        self, offset: int = 0, limit: int = 20, book_id: int = None
+        self, offset: int = 0, limit: int = 20, book_id: int = None, user_id: int = None
     ) -> tuple[list[Review], int]:
         """Get all reviews across all users with optional book_id filter."""
         query = (
@@ -323,6 +323,8 @@ class BookRepository:
         )
         if book_id is not None:
             query = query.filter(Review.book_id == book_id)
+        if user_id is not None:
+            query = query.filter(Review.reviewer_id == user_id)
         total = query.count()
         items = query.order_by(desc(Review.created_at)).offset(offset).limit(limit).all()
         return items, total

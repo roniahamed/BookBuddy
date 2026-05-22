@@ -411,11 +411,12 @@ async def translate_book(
 )
 async def list_all_reviews(
     book_id: Optional[int] = Query(None, description="Filter by book ID"),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
     pagination: PaginationParams = Depends(),
     db: Session = Depends(get_db),
 ):
     service = BookService(db)
-    return service.get_all_reviews(pagination, book_id)
+    return service.get_all_reviews(pagination, book_id, user_id)
 
 
 @review_router.post(
