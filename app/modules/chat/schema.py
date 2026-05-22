@@ -22,9 +22,11 @@ class ChatUserBrief(BaseModel):
 class ConversationResponse(BaseModel):
     """Single conversation in the chat list."""
     id: int
+    me: Optional[ChatUserBrief] = None
     other_user: Optional[ChatUserBrief] = None
     book_id: Optional[int] = None
     book_title: Optional[str] = None
+    book_image: Optional[str] = None
     last_message: Optional[str] = None
     last_message_at: Optional[datetime] = None
     unread_count: int = 0
@@ -84,6 +86,9 @@ class MessageResponse(BaseModel):
 class MessageListResponse(BaseModel):
     """Paginated messages."""
     items: List[MessageResponse] = []
+    book_id: Optional[int] = None
+    book_title: Optional[str] = None
+    book_image: Optional[str] = None
     total: int = 0
     page: int = 1
     per_page: int = 50

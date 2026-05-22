@@ -39,12 +39,13 @@ router = APIRouter()
 )
 async def list_conversations(
     filter_type: str = Query("all", description="Filter: all | unread | archive"),
+    other_user_id: int | None = Query(None, description="Filter conversations by a specific user ID"),
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    return service.list_conversations(current_user, filter_type, pagination)
+    return service.list_conversations(current_user, filter_type, pagination, other_user_id)
 
 
 @router.post(
