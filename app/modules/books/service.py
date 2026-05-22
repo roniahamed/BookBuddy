@@ -14,6 +14,7 @@ from app.modules.books.schema import (
     BookPaginatedResponse, BookOwnerBrief, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewerBrief, ReviewPaginatedResponse,
     WishlistItemResponse, WishlistPaginatedResponse,
+    GenrePaginatedResponse, AuthorPaginatedResponse,
 )
 from app.modules.users.model import User
 from app.shared.pagination import PaginationParams
@@ -285,6 +286,22 @@ class BookService:
         genres = self.repo.get_all_genres()
         return [GenreResponse.model_validate(g) for g in genres]
 
+    def get_genres_filtered(
+        self, search: str = None, sort_by: str = "name_asc",
+        pagination: PaginationParams = None
+    ) -> GenrePaginatedResponse:
+        """List genres with optional search and sort."""
+        offset = pagination.offset if pagination else 0
+        limit = pagination.per_page if pagination else 100
+        page = pagination.page if pagination else 1
+        genres, total = self.repo.get_genres_filtered(search, sort_by, offset, limit)
+        items = [GenreResponse.model_validate(g) for g in genres]
+        pages = math.ceil(total / limit) if limit > 0 else 0
+        return GenrePaginatedResponse(
+            items=items, total=total, page=page, per_page=limit,
+            pages=pages, has_next=page < pages, has_prev=page > 1,
+        )
+
     def create_genre(self, data: GenreCreate) -> GenreResponse:
         genre = self.repo.get_or_create_genre(data.name)
         return GenreResponse.model_validate(genre)
@@ -293,6 +310,22 @@ class BookService:
     def get_all_authors(self) -> list[AuthorResponse]:
         authors = self.repo.get_all_authors()
         return [AuthorResponse.model_validate(a) for a in authors]
+
+    def get_authors_filtered(
+        self, search: str = None, sort_by: str = "name_asc",
+        pagination: PaginationParams = None
+    ) -> AuthorPaginatedResponse:
+        """List authors with optional search and sort."""
+        offset = pagination.offset if pagination else 0
+        limit = pagination.per_page if pagination else 100
+        page = pagination.page if pagination else 1
+        authors, total = self.repo.get_authors_filtered(search, sort_by, offset, limit)
+        items = [AuthorResponse.model_validate(a) for a in authors]
+        pages = math.ceil(total / limit) if limit > 0 else 0
+        return AuthorPaginatedResponse(
+            items=items, total=total, page=page, per_page=limit,
+            pages=pages, has_next=page < pages, has_prev=page > 1,
+        )
 
     def create_author(self, data: AuthorCreate) -> AuthorResponse:
         author = self.repo.get_or_create_author(data.name)
@@ -418,6 +451,28 @@ class BookService:
     def get_user_reviews(self, user_id: int, pagination: PaginationParams) -> ReviewPaginatedResponse:
         """Community Ratings tab on user profile."""
         reviews, total = self.repo.get_reviews_for_user(user_id, pagination.offset, pagination.per_page)
+        items = [
+            ReviewResponse(
+                id=r.id,
+                rating=r.rating,
+                review_text=r.review_text,
+                created_at=r.created_at,
+                reviewer=ReviewerBrief.model_validate(r.reviewer) if r.reviewer else None,
+                book_title=r.book.title if r.book else None,
+                book_id=r.book_id,
+            )
+            for r in reviews
+        ]
+        pages = math.ceil(total / pagination.per_page) if pagination.per_page > 0 else 0
+        return ReviewPaginatedResponse(
+            items=items, total=total, page=pagination.page,
+            per_page=pagination.per_page, pages=pages,
+            has_next=pagination.page < pages, has_prev=pagination.page > 1,
+        )
+
+    def get_all_reviews(self, pagination: PaginationParams) -> ReviewPaginatedResponse:
+        """All reviews across all users (global feed)."""
+        reviews, total = self.repo.get_all_reviews(pagination.offset, pagination.per_page)
         items = [
             ReviewResponse(
                 id=r.id,

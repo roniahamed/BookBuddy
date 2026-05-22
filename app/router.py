@@ -9,6 +9,7 @@ from app.modules.borrowing.api import router as borrowing_router
 from app.modules.chat.api import router as chat_router
 from app.modules.notification.api import router as notification_router
 from app.modules.admin.api import router as admin_router
+from app.modules.contact.api import router as contact_router
 
 api_router = APIRouter()
 
@@ -80,4 +81,11 @@ api_router.include_router(
     admin_router,
     prefix="/admin",
     tags=["Admin"],
+)
+
+# ─── Contact Module ──────────────────────────────────────
+api_router.include_router(
+    contact_router,
+    prefix="/contact",
+    tags=["Contact"],
 )

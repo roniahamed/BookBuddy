@@ -221,6 +221,21 @@ class BookRepository:
     def get_all_genres(self) -> list[Genre]:
         return self.db.query(Genre).order_by(Genre.name).all()
 
+    def get_genres_filtered(
+        self, search: str = None, sort_by: str = "name_asc", offset: int = 0, limit: int = 100
+    ) -> tuple[list[Genre], int]:
+        """List genres with optional search and sorting."""
+        query = self.db.query(Genre)
+        if search:
+            query = query.filter(Genre.name.ilike(f"%{search}%"))
+        if sort_by == "name_desc":
+            query = query.order_by(desc(Genre.name))
+        else:
+            query = query.order_by(asc(Genre.name))
+        total = query.count()
+        items = query.offset(offset).limit(limit).all()
+        return items, total
+
     def get_or_create_genre(self, name: str) -> Genre:
         genre = self.db.query(Genre).filter(Genre.name == name).first()
         if not genre:
@@ -233,6 +248,21 @@ class BookRepository:
     # ─── Authors ─────────────────────────────────────────
     def get_all_authors(self) -> list[Author]:
         return self.db.query(Author).order_by(Author.name).all()
+
+    def get_authors_filtered(
+        self, search: str = None, sort_by: str = "name_asc", offset: int = 0, limit: int = 100
+    ) -> tuple[list[Author], int]:
+        """List authors with optional search and sorting."""
+        query = self.db.query(Author)
+        if search:
+            query = query.filter(Author.name.ilike(f"%{search}%"))
+        if sort_by == "name_desc":
+            query = query.order_by(desc(Author.name))
+        else:
+            query = query.order_by(asc(Author.name))
+        total = query.count()
+        items = query.offset(offset).limit(limit).all()
+        return items, total
 
     def get_or_create_author(self, name: str) -> Author:
         author = self.db.query(Author).filter(Author.name == name).first()
@@ -279,6 +309,20 @@ class BookRepository:
         self.db.commit()
 
     # ─── Reviews ─────────────────────────────────────────
+    def get_all_reviews(self, offset: int = 0, limit: int = 20) -> tuple[list[Review], int]:
+        """Get all reviews across all users (admin / public view)."""
+        query = (
+            self.db.query(Review)
+            .options(
+                joinedload(Review.reviewer),
+                joinedload(Review.reviewee),
+                joinedload(Review.book),
+            )
+        )
+        total = query.count()
+        items = query.order_by(desc(Review.created_at)).offset(offset).limit(limit).all()
+        return items, total
+
     def get_reviews_for_book(self, book_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Review], int]:
         query = (
             self.db.query(Review)

@@ -65,14 +65,27 @@ class ChatService:
 
         other_user = self.db.query(User).filter(User.id == data.participant_id).first()
         if not other_user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"User with id={data.participant_id} not found"
+            )
+
+        # Validate book_id if provided — gives a clear error instead of a DB FK violation
+        if data.book_id is not None:
+            from app.modules.books.model import Book
+            book = self.db.query(Book).filter(Book.id == data.book_id).first()
+            if not book:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Book with id={data.book_id} not found. "
+                           "Conversations are between users — you can omit book_id for a general chat."
+                )
 
         existing = self.repo.find_existing_conversation(user.id, data.participant_id, data.book_id)
         if existing:
             conv = self.repo.get_conversation_by_id(existing.id)
             if data.initial_message:
                 self.repo.send_message(conv.id, user.id, data.initial_message)
-                # Send push notification via Celery
                 self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
 
             return ConversationResponse(

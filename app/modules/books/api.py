@@ -33,6 +33,7 @@ from app.modules.books.schema import (
     BookCreateRequest, BookUpdateRequest,
     BookPaginatedResponse, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewPaginatedResponse,
+    GenrePaginatedResponse, AuthorPaginatedResponse,
 )
 from app.shared.pagination import PaginationParams
 
@@ -397,7 +398,24 @@ async def translate_book(
     return result
 
 
-# ─── Reviews Router ──────────────────────────────────────
+# ─── Reviews Router ──────────────────────────────────────────
+
+@review_router.get(
+    "",
+    response_model=ReviewPaginatedResponse,
+    summary="List all reviews",
+    description=(
+        "Get all community reviews across all users and books, ordered by newest first. "
+        "Visible to all authenticated users."
+    ),
+)
+async def list_all_reviews(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    service = BookService(db)
+    return service.get_all_reviews(pagination)
+
 
 @review_router.post(
     "",
@@ -426,20 +444,25 @@ async def submit_review(
     return service.submit_review(current_user, data)
 
 
-# ─── Genres Router ───────────────────────────────────────
+# ─── Genres Router ──────────────────────────────────────────
 
 @genre_router.get(
     "",
-    response_model=List[GenreResponse],
-    summary="List all genres",
+    response_model=GenrePaginatedResponse,
+    summary="List all genres (categories)",
     description=(
-        "Get all available book genres for the category filter tabs. "
-        "Genres: Science, History, Self-Help, Fiction, Children's, Business, Drama, Fantasy."
+        "Get all available book genres/categories with optional search and sorting. "
+        "Supports search by name and sorting (name_asc | name_desc)."
     ),
 )
-async def list_genres(db: Session = Depends(get_db)):
+async def list_genres(
+    search: Optional[str] = Query(None, description="Search by genre name"),
+    sort_by: Optional[str] = Query("name_asc", description="Sort: name_asc | name_desc"),
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
     service = BookService(db)
-    return service.get_all_genres()
+    return service.get_genres_filtered(search, sort_by, pagination)
 
 
 @genre_router.post(
@@ -457,16 +480,25 @@ async def create_genre(
     return service.create_genre(data)
 
 
-# ─── Authors Router ──────────────────────────────────────
+# ─── Authors Router ──────────────────────────────────────────
 
 @author_router.get(
     "",
-    response_model=List[AuthorResponse],
+    response_model=AuthorPaginatedResponse,
     summary="List all authors",
+    description=(
+        "Get all authors with optional search by name and sorting. "
+        "Supports search by name and sorting (name_asc | name_desc)."
+    ),
 )
-async def list_authors(db: Session = Depends(get_db)):
+async def list_authors(
+    search: Optional[str] = Query(None, description="Search by author name"),
+    sort_by: Optional[str] = Query("name_asc", description="Sort: name_asc | name_desc"),
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
     service = BookService(db)
-    return service.get_all_authors()
+    return service.get_authors_filtered(search, sort_by, pagination)
 
 
 @author_router.post(

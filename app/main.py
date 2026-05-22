@@ -5,11 +5,9 @@ Community book-sharing platform backend.
 Built with FastAPI, SQLAlchemy, PostgreSQL, Firebase, Celery + Redis.
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.docs import get_swagger_ui_html
-from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
@@ -27,6 +25,7 @@ from app.modules.borrowing.model import BorrowRequest
 from app.modules.chat.model import Conversation, Message
 from app.modules.admin.model import AppConfig, ContactMessage
 from app.modules.notification.model import Notification
+from app.modules.contact.model import Contact  # New contact submissions table
 
 # 1. Setup Logging
 setup_logging()
@@ -239,7 +238,7 @@ async def custom_swagger_ui_html():
     return HTMLResponse(content=modified_body, status_code=html_response.status_code)
 
 
-# ─── Root & Contact Endpoints ────────────────────────────
+# ─── Root Endpoint ─────────────────────────────────────────
 
 @app.get("/", tags=[" Health Check"])
 async def root():
@@ -260,57 +259,3 @@ async def root():
             "Admin-Configurable Settings",
         ],
     }
-
-
-class ContactRequest(BaseModel):
-    """Contact form submission (Contact page)."""
-    name: str = Field(..., min_length=2, max_length=150, description="Your name")
-    email: EmailStr = Field(..., description="Your email address")
-    subject: str = Field(..., min_length=2, max_length=255, description="Subject line")
-    message: str = Field(..., min_length=10, description="Your message")
-
-    model_config = {"json_schema_extra": {
-        "example": {
-            "name": "Alex Morgan",
-            "email": "alex@example.com",
-            "subject": "How can I join the community?",
-            "message": "I'd love to learn more about sharing books in my neighborhood.",
-        }
-    }}
-
-
-class ContactResponse(BaseModel):
-    """Response after submitting contact form."""
-    message: str = "Thank you for reaching out! We'll get back to you soon."
-
-
-@app.post(
-    f"{settings.API_V1_STR}/contact",
-    response_model=ContactResponse,
-    tags=[" Contact"],
-    summary="Submit contact form",
-    description="Submit an inquiry via the Contact page.",
-)
-async def submit_contact(data: ContactRequest, db: Session = Depends(get_db)):
-    # Save to database
-    message = ContactMessage(
-        name=data.name,
-        email=data.email,
-        subject=data.subject,
-        message=data.message
-    )
-    db.add(message)
-    db.commit()
-
-    # Send via Celery background task
-    try:
-        from app.background.tasks import send_notification_email_task
-        send_notification_email_task.delay(
-            settings.SMTP_FROM_EMAIL,
-            f"Contact Form: {data.subject}",
-            f"From: {data.name} ({data.email})\n\n{data.message}",
-            "Support Team",
-        )
-    except Exception:
-        pass  # Non-critical
-    return ContactResponse()

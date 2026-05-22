@@ -45,16 +45,24 @@ class ConversationListResponse(BaseModel):
 
 
 class ConversationCreateRequest(BaseModel):
-    """Start a new conversation (CHAT button on Book Details)."""
-    participant_id: int = Field(..., description="ID of the other user")
-    book_id: Optional[int] = Field(None, description="ID of the book (optional context)")
-    initial_message: Optional[str] = Field(None, description="First message to send")
+    """Start a new conversation between two users (CHAT button on Book Details or user profile).
+    
+    Conversations are USER-TO-USER. The book_id is optional context — you can start
+    a conversation without referencing any book at all.
+    """
+    participant_id: int = Field(..., description="ID of the other user to chat with")
+    book_id: Optional[int] = Field(
+        None,
+        description="Optional: ID of a book for context. If provided, the book must exist. "
+                    "Leave empty to start a general user-to-user conversation."
+    )
+    initial_message: Optional[str] = Field(None, description="First message to send (optional)")
 
     model_config = {"json_schema_extra": {
         "example": {
             "participant_id": 2,
-            "book_id": 1,
-            "initial_message": "Hi! Is A Tale of Love and Darkness still available?",
+            "book_id": None,
+            "initial_message": "Hi! Is the book still available?",
         }
     }}
 

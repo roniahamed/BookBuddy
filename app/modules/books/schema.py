@@ -21,6 +21,17 @@ class GenreCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
 
+class GenrePaginatedResponse(BaseModel):
+    """Paginated genres list."""
+    items: List[GenreResponse] = []
+    total: int = 0
+    page: int = 1
+    per_page: int = 100
+    pages: int = 0
+    has_next: bool = False
+    has_prev: bool = False
+
+
 # ─── Author ──────────────────────────────────────────────
 class AuthorResponse(BaseModel):
     id: int
@@ -31,6 +42,17 @@ class AuthorResponse(BaseModel):
 
 class AuthorCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
+
+
+class AuthorPaginatedResponse(BaseModel):
+    """Paginated authors list."""
+    items: List[AuthorResponse] = []
+    total: int = 0
+    page: int = 1
+    per_page: int = 100
+    pages: int = 0
+    has_next: bool = False
+    has_prev: bool = False
 
 
 # ─── Book Owner (embedded) ───────────────────────────────
