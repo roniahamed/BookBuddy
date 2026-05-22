@@ -71,7 +71,9 @@ class ConversationCreateRequest(BaseModel):
 class MessageResponse(BaseModel):
     """Single message in conversation view."""
     id: int
+    conversation_id: Optional[int] = None
     sender: Optional[ChatUserBrief] = None
+    receiver: Optional[ChatUserBrief] = None
     body: str
     is_read: bool = False
     sent_at: Optional[datetime] = None
