@@ -146,6 +146,7 @@ class ChatService:
         items = [
             MessageResponse(
                 id=m["id"],
+                conversation_id=conv_id,
                 sender=ChatUserBrief(id=m["sender"].id, full_name=m["sender"].full_name, avatar_url=m["sender"].avatar_url) if m["sender"] else None,
                 body=m["body"],  # Decrypted plaintext
                 is_read=m["is_read"],
@@ -172,11 +173,14 @@ class ChatService:
 
         # Send push notification to recipient
         recipient_id = conv.participant_2 if conv.participant_1 == user.id else conv.participant_1
+        recipient_user = conv.participant_2_user if conv.participant_1 == user.id else conv.participant_1_user
         self._notify_new_message(recipient_id, user.full_name, data.body)
 
         return MessageResponse(
             id=result["id"],
+            conversation_id=conv_id,
             sender=ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url),
+            receiver=ChatUserBrief(id=recipient_user.id, full_name=recipient_user.full_name, avatar_url=recipient_user.avatar_url) if recipient_user else None,
             body=result["body"],  # Plaintext returned to sender
             is_read=False,
             sent_at=result["sent_at"],
