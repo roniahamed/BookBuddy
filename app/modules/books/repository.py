@@ -309,8 +309,10 @@ class BookRepository:
         self.db.commit()
 
     # ─── Reviews ─────────────────────────────────────────
-    def get_all_reviews(self, offset: int = 0, limit: int = 20) -> tuple[list[Review], int]:
-        """Get all reviews across all users (admin / public view)."""
+    def get_all_reviews(
+        self, offset: int = 0, limit: int = 20, book_id: int = None
+    ) -> tuple[list[Review], int]:
+        """Get all reviews across all users with optional book_id filter."""
         query = (
             self.db.query(Review)
             .options(
@@ -319,6 +321,8 @@ class BookRepository:
                 joinedload(Review.book),
             )
         )
+        if book_id is not None:
+            query = query.filter(Review.book_id == book_id)
         total = query.count()
         items = query.order_by(desc(Review.created_at)).offset(offset).limit(limit).all()
         return items, total

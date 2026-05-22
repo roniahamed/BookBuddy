@@ -470,9 +470,9 @@ class BookService:
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
 
-    def get_all_reviews(self, pagination: PaginationParams) -> ReviewPaginatedResponse:
-        """All reviews across all users (global feed)."""
-        reviews, total = self.repo.get_all_reviews(pagination.offset, pagination.per_page)
+    def get_all_reviews(self, pagination: PaginationParams, book_id: int = None) -> ReviewPaginatedResponse:
+        """All reviews across all users (global feed). Optionally filtered by book_id."""
+        reviews, total = self.repo.get_all_reviews(pagination.offset, pagination.per_page, book_id)
         items = [
             ReviewResponse(
                 id=r.id,

@@ -406,15 +406,16 @@ async def translate_book(
     summary="List all reviews",
     description=(
         "Get all community reviews across all users and books, ordered by newest first. "
-        "Visible to all authenticated users."
+        "Optionally filter by `book_id` to get reviews for a specific book."
     ),
 )
 async def list_all_reviews(
+    book_id: Optional[int] = Query(None, description="Filter by book ID"),
     pagination: PaginationParams = Depends(),
     db: Session = Depends(get_db),
 ):
     service = BookService(db)
-    return service.get_all_reviews(pagination)
+    return service.get_all_reviews(pagination, book_id)
 
 
 @review_router.post(
