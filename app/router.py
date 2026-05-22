@@ -4,11 +4,12 @@ Central API router — includes all module routers with proper prefixes and tags
 from fastapi import APIRouter
 from app.modules.auth.api import router as auth_router
 from app.modules.users.api import router as users_router
-from app.modules.books.api import router as books_router, review_router, genre_router
+from app.modules.books.api import router as books_router, review_router, genre_router, author_router
 from app.modules.borrowing.api import router as borrowing_router
 from app.modules.chat.api import router as chat_router
 from app.modules.notification.api import router as notification_router
 from app.modules.admin.api import router as admin_router
+from app.modules.contact.api import router as contact_router
 
 api_router = APIRouter()
 
@@ -38,6 +39,13 @@ api_router.include_router(
     genre_router,
     prefix="/genres",
     tags=["Categories"],
+)
+
+# ─── Authors ─────────────────────────────────────────────
+api_router.include_router(
+    author_router,
+    prefix="/authors",
+    tags=["Authors"],
 )
 
 # ─── Reviews ─────────────────────────────────────────────
@@ -73,4 +81,11 @@ api_router.include_router(
     admin_router,
     prefix="/admin",
     tags=["Admin"],
+)
+
+# ─── Contact Module ──────────────────────────────────────
+api_router.include_router(
+    contact_router,
+    prefix="/contact",
+    tags=["Contact"],
 )

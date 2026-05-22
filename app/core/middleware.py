@@ -44,6 +44,49 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         logger.info(f"Response: {response.status_code} (Duration: {duration:.4f}s)")
         return response
 
+class I18nMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        lang = request.headers.get("Accept-Language", "").lower()
+        # Only translate JSON responses if Hebrew is requested
+        if lang.startswith("he") and response.headers.get("content-type") == "application/json":
+            body = b""
+            # Consume the original response body
+            async for chunk in response.body_iterator:
+                body += chunk
+            
+            try:
+                import json
+                from app.core.translation import translate_text
+                
+                data = json.loads(body.decode("utf-8"))
+                
+                def translate_recursive(obj):
+                    if isinstance(obj, dict):
+                        return {k: translate_recursive(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [translate_recursive(v) for v in obj]
+                    elif isinstance(obj, str) and not obj.startswith("http") and not obj.endswith("Z") and len(obj) > 2:
+                        return translate_text(obj, "he")
+                    return obj
+                
+                translated_data = translate_recursive(data)
+                return JSONResponse(
+                    status_code=response.status_code, 
+                    content=translated_data,
+                    # don't pass headers as content-length will be wrong
+                )
+            except Exception as e:
+                logger.error(f"I18n translation error: {e}")
+                # Return original body if translation fails
+                from fastapi.responses import Response
+                return Response(
+                    content=body, 
+                    status_code=response.status_code, 
+                    headers=dict(response.headers)
+                )
+        return response
+
 def setup_middleware(app: FastAPI) -> None:
     # 1. Rate Limiting
     app.state.limiter = limiter
@@ -73,6 +116,9 @@ def setup_middleware(app: FastAPI) -> None:
 
     # 6. Authentication Middleware
     app.add_middleware(AuthMiddleware)
+
+    # 6.5. I18n Middleware
+    app.add_middleware(I18nMiddleware)
 
     # 7. Global Exception Logging (using a standard handler instead of middleware to avoid swallowing specific errors)
     @app.exception_handler(Exception)

@@ -58,7 +58,7 @@ def _borrow_to_response(borrow: BorrowRequest) -> BorrowRequestResponse:
         book_brief = BorrowBookBrief(
             id=borrow.book.id,
             title=borrow.book.title,
-            author_name=borrow.book.author_name,
+            author_name=borrow.book.author.name if borrow.book.author else None,
             front_cover_url=borrow.book.front_cover_url,
             description=borrow.book.description,
             avg_rating=borrow.book.avg_rating or 0.0,
@@ -209,6 +209,26 @@ class BorrowService:
         borrow = self.repo.update_status(request_id, "cancelled")
         return BorrowStatusUpdateResponse(
             id=borrow.id, status="cancelled", message="Borrow request rejected"
+        )
+
+    def cancel_request(self, request_id: int, user: User) -> BorrowStatusUpdateResponse:
+        """
+        Borrower cancels borrow request.
+        Transition: pending → cancelled
+        """
+        borrow = self.repo.get_by_id(request_id)
+        if not borrow:
+            raise HTTPException(status_code=404, detail="Borrow request not found")
+
+        if borrow.borrower_id != user.id:
+            raise HTTPException(status_code=403, detail="Only the borrower can cancel their requests")
+
+        if borrow.status != "pending":
+            raise HTTPException(status_code=400, detail=f"Cannot cancel a {borrow.status} request")
+
+        borrow = self.repo.update_status(request_id, "cancelled")
+        return BorrowStatusUpdateResponse(
+            id=borrow.id, status="cancelled", message="Borrow request cancelled"
         )
 
     def mark_returned(self, request_id: int, user: User) -> BorrowStatusUpdateResponse:

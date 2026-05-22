@@ -17,6 +17,44 @@ class GenreResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GenreCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class GenrePaginatedResponse(BaseModel):
+    """Paginated genres list."""
+    items: List[GenreResponse] = []
+    total: int = 0
+    page: int = 1
+    per_page: int = 100
+    pages: int = 0
+    has_next: bool = False
+    has_prev: bool = False
+
+
+# ─── Author ──────────────────────────────────────────────
+class AuthorResponse(BaseModel):
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+class AuthorCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class AuthorPaginatedResponse(BaseModel):
+    """Paginated authors list."""
+    items: List[AuthorResponse] = []
+    total: int = 0
+    page: int = 1
+    per_page: int = 100
+    pages: int = 0
+    has_next: bool = False
+    has_prev: bool = False
+
+
 # ─── Book Owner (embedded) ───────────────────────────────
 class BookOwnerBrief(BaseModel):
     """Brief owner info shown on book cards and detail pages."""
@@ -34,7 +72,7 @@ class BookListItemResponse(BaseModel):
     """Book card shown on Home page grid, Browse Book, and search results."""
     id: int
     title: str
-    author_name: str
+    author: Optional[AuthorResponse] = None
     front_cover_url: Optional[str] = None
     back_cover_url: Optional[str] = None
     condition: str
@@ -58,7 +96,7 @@ class BookDetailResponse(BaseModel):
     """Full book detail page — includes description, reviews, recommendations."""
     id: int
     title: str
-    author_name: str
+    author: Optional[AuthorResponse] = None
     description: Optional[str] = None
     front_cover_url: Optional[str] = None
     back_cover_url: Optional[str] = None
@@ -83,7 +121,7 @@ class BookDetailResponse(BaseModel):
 class BookCreateRequest(BaseModel):
     """Upload Book modal form fields."""
     title: str = Field(..., min_length=1, max_length=255, description="Book title")
-    author_name: str = Field(..., min_length=1, max_length=255, description="Author name")
+    author_id: Optional[int] = Field(None, description="Author ID from /authors")
     genre_id: Optional[int] = Field(None, description="Genre ID from /genres")
     description: Optional[str] = Field(None, description="Book description and condition")
     front_cover_url: Optional[str] = Field(None, max_length=500, description="Front cover image URL")
@@ -97,7 +135,7 @@ class BookCreateRequest(BaseModel):
     model_config = {"json_schema_extra": {
         "example": {
             "title": "A Tale of Love and Darkness",
-            "author_name": "Amos Oz",
+            "author_id": 1,
             "genre_id": 1,
             "description": "A deeply personal memoir exploring family, memory, and the birth of Israel.",
             "condition": "Good",
@@ -112,7 +150,7 @@ class BookCreateRequest(BaseModel):
 class BookUpdateRequest(BaseModel):
     """Update book details (owner only)."""
     title: Optional[str] = Field(None, min_length=1, max_length=255)
-    author_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    author_id: Optional[int] = None
     genre_id: Optional[int] = None
     description: Optional[str] = None
     front_cover_url: Optional[str] = None
@@ -157,6 +195,7 @@ class ReviewResponse(BaseModel):
     created_at: Optional[datetime] = None
     reviewer: Optional[ReviewerBrief] = None
     book_title: Optional[str] = None
+    book_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

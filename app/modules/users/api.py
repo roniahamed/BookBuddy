@@ -26,6 +26,9 @@ from app.modules.users.schema import (
     ChangePasswordRequest, ChangePasswordResponse,
     DeleteAccountResponse,
 )
+from app.modules.books.service import BookService
+from app.modules.books.schema import ReviewPaginatedResponse
+from app.shared.pagination import PaginationParams
 
 router = APIRouter()
 
@@ -179,3 +182,21 @@ async def get_public_profile(
 ):
     service = UserService(db)
     return service.get_public_profile(user_id)
+
+
+@router.get(
+    "/{user_id}/ratings",
+    response_model=ReviewPaginatedResponse,
+    summary="Get user ratings",
+    description=(
+        "Get community ratings/reviews for a specific user. "
+        "Shown in the 'Community Ratings' tab on the user profile."
+    ),
+)
+async def get_user_ratings(
+    user_id: int,
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+):
+    service = BookService(db)
+    return service.get_user_reviews(user_id, pagination)

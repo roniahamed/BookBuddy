@@ -79,8 +79,8 @@ class UserFCMTokenAdmin(ModelView, model=UserFCMToken):
     icon = "fa-solid fa-bell"
 
 class BookAdmin(ModelView, model=Book):
-    column_list = [Book.id, Book.title, Book.author_name, Book.owner_id, Book.availability, Book.created_at]
-    column_searchable_list = [Book.title, Book.author_name]
+    column_list = [Book.id, Book.title, Book.author_id, Book.owner_id, Book.availability, Book.created_at]
+    column_searchable_list = [Book.title]
     column_filters = [Book.availability]
     name = "Book"
     name_plural = "Books"
