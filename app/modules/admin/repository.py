@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from typing import Optional
 
-from app.modules.admin.model import AppConfig, ContactMessage
+from app.modules.admin.model import AppConfig, ContactMessage, ActivityLog
 from app.modules.users.model import User
 from app.modules.books.model import Book, Review
 from app.modules.borrowing.model import BorrowRequest
@@ -83,6 +83,28 @@ class AdminManagementRepository:
         avg_rating_result = self.db.query(func.avg(Review.rating)).scalar()
         avg_platform_rating = round(float(avg_rating_result), 2) if avg_rating_result else 0.0
 
+        # Recent 10 borrows
+        recent_borrows_qs = self.db.query(BorrowRequest).order_by(BorrowRequest.requested_at.desc()).limit(10).all()
+        recent_borrows = [{
+            "id": b.id,
+            "requester_name": b.borrower.full_name if b.borrower else "",
+            "requester_avatar_url": b.borrower.avatar_url if b.borrower else None,
+            "book_title": b.book.title if b.book else "",
+            "status": b.status,
+            "requested_date": b.requested_at
+        } for b in recent_borrows_qs]
+
+        # Recent 10 activities
+        recent_activities_qs = self.db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).limit(10).all()
+        recent_activities = [{
+            "id": a.id,
+            "user_name": a.user.full_name if a.user else "",
+            "user_avatar_url": a.user.avatar_url if a.user else None,
+            "action_type": a.action_type,
+            "description": a.description,
+            "created_at": a.created_at
+        } for a in recent_activities_qs]
+
         return {
             "total_users": total_users,
             "active_users": active_users,
@@ -96,6 +118,8 @@ class AdminManagementRepository:
             "overdue_borrow_requests": overdue_borrows,
             "total_reviews": total_reviews,
             "avg_platform_rating": avg_platform_rating,
+            "recent_borrows": recent_borrows,
+            "recent_activities": recent_activities,
         }
 
     # ── User Management ───────────────────────────────────
@@ -286,6 +310,22 @@ class AdminManagementRepository:
     def get_all_active_users(self) -> list[User]:
         """Get all active users for broadcast notifications."""
         return self.db.query(User).filter(User.is_active == True).all()
+
+    # ── Borrows & Activities Management ───────────────────
+
+    def get_all_borrows(self, status: Optional[str] = None, page: int = 1, size: int = 20) -> tuple[list[BorrowRequest], int]:
+        query = self.db.query(BorrowRequest)
+        if status:
+            query = query.filter(BorrowRequest.status == status)
+        total = query.count()
+        items = query.order_by(BorrowRequest.requested_at.desc()).offset((page - 1) * size).limit(size).all()
+        return items, total
+
+    def get_activities(self, page: int = 1, size: int = 20) -> tuple[list[ActivityLog], int]:
+        query = self.db.query(ActivityLog)
+        total = query.count()
+        items = query.order_by(ActivityLog.created_at.desc()).offset((page - 1) * size).limit(size).all()
+        return items, total
 
     # ── Contact Messages ──────────────────────────────────
 

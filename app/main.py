@@ -23,7 +23,7 @@ from app.modules.auth.model import PasswordResetToken
 from app.modules.books.model import Book, Genre, Wishlist, Review, Author
 from app.modules.borrowing.model import BorrowRequest
 from app.modules.chat.model import Conversation, Message
-from app.modules.admin.model import AppConfig, ContactMessage
+from app.modules.admin.model import AppConfig, ContactMessage, ActivityLog
 from app.modules.notification.model import Notification
 from app.modules.contact.model import Contact  # New contact submissions table
 

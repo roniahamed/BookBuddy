@@ -76,6 +76,40 @@ class AdminStatsResponse(BaseModel):
     total_reviews: int = 0
     avg_platform_rating: float = 0.0
 
+    recent_borrows: List[dict] = []
+    recent_activities: List[dict] = []
+
+
+class AdminRecentBorrowItem(BaseModel):
+    id: int
+    requester_name: str
+    requester_avatar_url: Optional[str] = None
+    book_title: str
+    status: str
+    requested_date: Optional[datetime] = None
+
+class AdminRecentActivityItem(BaseModel):
+    id: int
+    user_name: str
+    user_avatar_url: Optional[str] = None
+    action_type: str
+    description: str
+    created_at: Optional[datetime] = None
+
+class AdminBorrowListResponse(BaseModel):
+    items: List[AdminRecentBorrowItem] = []
+    total: int = 0
+    page: int = 1
+    size: int = 20
+    pages: int = 1
+
+class AdminActivityListResponse(BaseModel):
+    items: List[AdminRecentActivityItem] = []
+    total: int = 0
+    page: int = 1
+    size: int = 20
+    pages: int = 1
+
 
 # ─── User Management ──────────────────────────────────────
 
