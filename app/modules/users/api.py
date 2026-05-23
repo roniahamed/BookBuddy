@@ -12,9 +12,11 @@ Covers:
 - GET    /users/{user_id}/books             — User's uploaded books (public)
 - GET    /users/{user_id}/reviews           — Community ratings for user
 """
-from fastapi import APIRouter, Depends, status, Request, HTTPException
+from fastapi import APIRouter, Depends, status, Request, HTTPException, UploadFile, File, Form
+import os
+import uuid
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.core.dependencies import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.model import User
@@ -58,27 +60,49 @@ async def get_my_profile(
     response_model=UserProfileResponse,
     summary="Update my profile",
     description=(
-        "Update profile fields: name, avatar, location, GPS coordinates. "
+        "Update profile fields: name, avatar_file (image upload), location, GPS coordinates. "
         "Only provided fields are updated (partial update). "
-        "Corresponds to the edit icon on the Profile sidebar."
+        "Corresponds to the edit icon on the Profile sidebar. "
+        "Accepts multipart/form-data."
     ),
 )
 async def update_my_profile(
     request: Request,
-    data: UserUpdateRequest,
+    full_name: Optional[str] = Form(None, min_length=2, max_length=150),
+    location: Optional[str] = Form(None, max_length=255),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    avatar_file: Optional[UploadFile] = File(None),
+    email: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Check raw JSON for email field — IMMUTABLE
-    raw_body = await request.json()
-    if "email" in raw_body:
+    if email is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email cannot be changed. Please contact support for assistance.",
         )
-    service = UserService(db)
-    return service.update_my_profile(current_user, data)
+        
+    update_data = {}
+    if full_name is not None: update_data["full_name"] = full_name
+    if location is not None: update_data["location"] = location
+    if latitude is not None: update_data["latitude"] = latitude
+    if longitude is not None: update_data["longitude"] = longitude
+    
+    if avatar_file is not None and avatar_file.filename:
+        if not avatar_file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Avatar must be an image file")
+        ext = avatar_file.filename.split(".")[-1] if "." in avatar_file.filename else "jpg"
+        filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join("static/uploads", filename)
+        os.makedirs("static/uploads", exist_ok=True)
+        with open(filepath, "wb") as f:
+            f.write(await avatar_file.read())
+        update_data["avatar_url"] = f"/static/uploads/{filename}"
 
+    service = UserService(db)
+    updated_user = service.repo.update_user(current_user.id, update_data)
+    return service.get_my_profile(updated_user)
 
 # ─── Settings ────────────────────────────────────────────
 
