@@ -48,27 +48,7 @@ async def list_conversations(
     return service.list_conversations(current_user, filter_type, pagination, other_user_id)
 
 
-@router.post(
-    "",
-    response_model=ConversationResponse,
-    summary="Start a conversation",
-    description=(
-        "Start a new conversation with a user (CHAT button on Book Details). "
-        "If a conversation already exists between the two users about the same book, "
-        "it returns the existing conversation. Optionally send an initial message."
-    ),
-    responses={
-        400: {"description": "Cannot chat with yourself"},
-        404: {"description": "User not found"},
-    },
-)
-async def create_conversation(
-    data: ConversationCreateRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = ChatService(db)
-    return service.create_conversation(current_user, data)
+# Start a conversation endpoint removed since it's dynamically created by send_message
 
 
 @router.get(
@@ -86,78 +66,70 @@ async def get_unread_count(
 
 
 @router.get(
-    "/{conversation_id}",
+    "/user/{other_user_id}",
     response_model=ConversationResponse,
     summary="Get conversation details",
-    description="Get details of a specific conversation including participant info.",
+    description="Get details of a specific conversation with another user.",
     responses={
-        403: {"description": "Not a participant"},
         404: {"description": "Conversation not found"},
     },
 )
 async def get_conversation(
-    conversation_id: int,
+    other_user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    return service.get_conversation(conversation_id, current_user)
+    return service.get_conversation(other_user_id, current_user)
 
 
 @router.get(
-    "/{conversation_id}/messages",
+    "/user/{other_user_id}/messages",
     response_model=MessageListResponse,
     summary="Get messages",
     description=(
-        "Get messages in a conversation, ordered newest first (paginated). "
+        "Get messages with another user, ordered newest first (paginated). "
         "Each message includes sender info and read status."
     ),
-    responses={
-        403: {"description": "Not a participant"},
-        404: {"description": "Conversation not found"},
-    },
 )
 async def get_messages(
-    conversation_id: int,
+    other_user_id: int,
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    service.mark_read(conversation_id, current_user)
-    return service.get_messages(conversation_id, current_user, pagination)
+    service.mark_read(other_user_id, current_user)
+    return service.get_messages(other_user_id, current_user, pagination)
 
 
 @router.post(
-    "/{conversation_id}/messages",
+    "/user/{other_user_id}/messages",
     response_model=MessageResponse,
     summary="Send a message",
     description=(
-        "Send a new message in a conversation. "
+        "Send a new message to another user. Auto-creates conversation if it doesn't exist. "
         "Updates the conversation's last_message_at for sorting."
     ),
     responses={
-        403: {"description": "Not a participant"},
-        404: {"description": "Conversation not found"},
+        404: {"description": "User not found"},
     },
 )
 async def send_message(
-    conversation_id: int,
+    other_user_id: int,
     data: MessageCreateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    msg = service.send_message(conversation_id, current_user, data)
+    msg = service.send_message(other_user_id, current_user, data)
 
     # We do NOT send new_message to the sender's websocket.
 
     # Send via websocket to recipient
     try:
-        conv = service.get_conversation(conversation_id, current_user)
-        if conv.other_user:
-            recipient_id = conv.other_user.id
-            recipient = db.query(User).filter(User.id == recipient_id).first()
+        if other_user_id:
+            recipient = db.query(User).filter(User.id == other_user_id).first()
             if recipient:
                 recipient_convs = service.list_conversations(recipient, "all", PaginationParams(page=1, per_page=20))
                 
@@ -188,39 +160,34 @@ async def send_message(
 
 
 @router.patch(
-    "/{conversation_id}/read",
+    "/user/{other_user_id}/read",
     summary="Mark messages as read",
     description="Mark all unread messages from the other user as read.",
-    responses={
-        403: {"description": "Not a participant"},
-        404: {"description": "Conversation not found"},
-    },
 )
 async def mark_read(
-    conversation_id: int,
+    other_user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    return service.mark_read(conversation_id, current_user)
+    return service.mark_read(other_user_id, current_user)
 
 
 @router.patch(
-    "/{conversation_id}/archive",
+    "/user/{other_user_id}/archive",
     summary="Archive conversation",
     description="Move a conversation to the Archive tab.",
     responses={
-        403: {"description": "Not a participant"},
         404: {"description": "Conversation not found"},
     },
 )
 async def archive_conversation(
-    conversation_id: int,
+    other_user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
-    return service.archive_conversation(conversation_id, current_user)
+    return service.archive_conversation(other_user_id, current_user)
 
 # ─── WebSocket Endpoint ──────────────────────────────────
 
@@ -289,10 +256,10 @@ async def websocket_endpoint(
                 import json
                 data = json.loads(text)
                 if data.get("action") == "mark_read":
-                    conv_id = data.get("conversation_id")
-                    if conv_id is not None:
+                    other_user_id = data.get("other_user_id")
+                    if other_user_id is not None:
                         service = ChatService(db)
-                        service.mark_read(int(conv_id), current_user)
+                        service.mark_read(int(other_user_id), current_user)
                         
                         # Send updated conversation list to reflect the new unread count
                         convs = service.list_conversations(current_user, "all", PaginationParams(page=1, per_page=20))
