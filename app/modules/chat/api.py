@@ -124,6 +124,7 @@ async def get_messages(
     db: Session = Depends(get_db),
 ):
     service = ChatService(db)
+    service.mark_read(conversation_id, current_user)
     return service.get_messages(conversation_id, current_user, pagination)
 
 
@@ -283,7 +284,25 @@ async def websocket_endpoint(
 
     try:
         while True:
-            # Only read action. The client might send pings or just hold the connection open.
-            await websocket.receive_text()
+            text = await websocket.receive_text()
+            try:
+                import json
+                data = json.loads(text)
+                if data.get("action") == "mark_read":
+                    conv_id = data.get("conversation_id")
+                    if conv_id is not None:
+                        service = ChatService(db)
+                        service.mark_read(int(conv_id), current_user)
+                        
+                        # Send updated conversation list to reflect the new unread count
+                        convs = service.list_conversations(current_user, "all", PaginationParams(page=1, per_page=20))
+                        await manager.send_to_user({
+                            "event": "CONVERSATION_LIST_UPDATE",
+                            "data": convs.model_dump(mode="json")["items"]
+                        }, current_user.id)
+            except json.JSONDecodeError:
+                pass
+            except Exception:
+                pass
     except WebSocketDisconnect:
         manager.disconnect(websocket, current_user.id)
