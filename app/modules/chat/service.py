@@ -47,7 +47,6 @@ class ChatService:
             me, other_user = self._get_participants(conv, user.id)
             items.append(ConversationResponse(
                 id=conv.id,
-                me=me,
                 other_user=other_user,
                 book_id=conv.book_id,
                 book_title=conv.book.title if conv.book else None,
@@ -97,7 +96,6 @@ class ChatService:
             me, other_user = self._get_participants(conv, user.id)
             return ConversationResponse(
                 id=conv.id,
-                me=me,
                 other_user=other_user,
                 book_id=conv.book_id,
                 book_title=conv.book.title if conv.book else None,
@@ -115,11 +113,10 @@ class ChatService:
             self.repo.send_message(conv.id, user.id, data.initial_message)
             self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
 
-        sender, receiver = self._get_participants(conv, user.id)
+        me, other_user = self._get_participants(conv, user.id)
         return ConversationResponse(
             id=conv.id,
-            sender=sender,
-            receiver=receiver,
+            other_user=other_user,
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
             book_image=conv.book.front_cover_url if conv.book else None,
@@ -136,11 +133,10 @@ class ChatService:
         if conv.participant_1 != user.id and conv.participant_2 != user.id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-        sender, receiver = self._get_participants(conv, user.id)
+        me, other_user = self._get_participants(conv, user.id)
         return ConversationResponse(
             id=conv.id,
-            sender=sender,
-            receiver=receiver,
+            other_user=other_user,
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
             book_image=conv.book.front_cover_url if conv.book else None,
@@ -169,10 +165,10 @@ class ChatService:
             if m["sender"]:
                 if m["sender"].id == user.id:
                     msg_sender = current_user_brief
-                    msg_receiver = other_user_brief
+                    msg_receiver = None
                 else:
-                    msg_sender = other_user_brief
-                    msg_receiver = current_user_brief
+                    msg_sender = None
+                    msg_receiver = other_user_brief
 
             items.append(MessageResponse(
                 id=m["id"],
@@ -213,7 +209,7 @@ class ChatService:
             id=result["id"],
             conversation_id=conv_id,
             sender=ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url),
-            receiver=ChatUserBrief(id=recipient_user.id, full_name=recipient_user.full_name, avatar_url=recipient_user.avatar_url) if recipient_user else None,
+            receiver=None,
             body=result["body"],  # Plaintext returned to sender
             is_read=False,
             sent_at=result["sent_at"],

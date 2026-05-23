@@ -149,27 +149,36 @@ async def send_message(
     service = ChatService(db)
     msg = service.send_message(conversation_id, current_user, data)
 
-    # Send via websocket to sender
-    try:
-        sender_convs = service.list_conversations(current_user, "all", PaginationParams(page=1, per_page=20))
-        await manager.send_to_user({
-            "type": "new_message",
-            "message": msg.model_dump(mode="json"),
-            "conversations": sender_convs.model_dump(mode="json")["items"]
-        }, current_user.id)
-    except Exception:
-        pass
+    # We do NOT send new_message to the sender's websocket.
 
     # Send via websocket to recipient
     try:
-        if msg.receiver:
-            recipient = db.query(User).filter(User.id == msg.receiver.id).first()
+        conv = service.get_conversation(conversation_id, current_user)
+        if conv.other_user:
+            recipient_id = conv.other_user.id
+            recipient = db.query(User).filter(User.id == recipient_id).first()
             if recipient:
                 recipient_convs = service.list_conversations(recipient, "all", PaginationParams(page=1, per_page=20))
+                
+                # For the recipient, the sender is "other user" so it maps to receiver
+                recipient_msg = MessageResponse(
+                    id=msg.id,
+                    conversation_id=msg.conversation_id,
+                    sender=None,
+                    receiver=msg.sender,
+                    body=msg.body,
+                    is_read=msg.is_read,
+                    sent_at=msg.sent_at
+                )
+
                 await manager.send_to_user({
-                    "type": "new_message",
-                    "message": msg.model_dump(mode="json"),
-                    "conversations": recipient_convs.model_dump(mode="json")["items"]
+                    "event": "RECEIVE_MESSAGE",
+                    "data": recipient_msg.model_dump(mode="json")
+                }, recipient.id)
+                
+                await manager.send_to_user({
+                    "event": "CONVERSATION_LIST_UPDATE",
+                    "data": recipient_convs.model_dump(mode="json")["items"]
                 }, recipient.id)
     except Exception:
         pass
@@ -266,8 +275,8 @@ async def websocket_endpoint(
         service = ChatService(db)
         convs = service.list_conversations(current_user, "all", PaginationParams(page=1, per_page=20))
         await manager.send_to_user({
-            "type": "conversation_list",
-            "conversations": convs.model_dump(mode="json")["items"]
+            "event": "CONVERSATION_LIST_UPDATE",
+            "data": convs.model_dump(mode="json")["items"]
         }, current_user.id)
     except Exception:
         pass

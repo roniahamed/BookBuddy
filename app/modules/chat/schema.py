@@ -22,7 +22,6 @@ class ChatUserBrief(BaseModel):
 class ConversationResponse(BaseModel):
     """Single conversation in the chat list."""
     id: int
-    me: Optional[ChatUserBrief] = None
     other_user: Optional[ChatUserBrief] = None
     book_id: Optional[int] = None
     book_title: Optional[str] = None
