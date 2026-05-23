@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from app.modules.books.repository import BookRepository
 from app.modules.books.filters import BookFilters
 from app.modules.books.model import Book
+from app.modules.notification.service import NotificationService
 from app.modules.books.schema import (
     BookListItemResponse, BookDetailResponse, BookCreateRequest, BookUpdateRequest,
     BookPaginatedResponse, BookOwnerBrief, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
@@ -435,6 +436,14 @@ class BookService:
             "rating": data.rating,
             "review_text": data.review_text,
         })
+
+        # Notify reviewee
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=reviewee_id,
+            title="New Review Received",
+            message=f"{user.full_name} has left a {data.rating}-star review for '{book.title}'."
+        )
 
         # Update denormalized avg_rating fields
         self.repo.update_book_avg_rating(borrow.book_id)

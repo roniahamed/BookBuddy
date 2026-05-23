@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 
 from app.modules.borrowing.repository import BorrowRepository
 from app.modules.borrowing.model import BorrowRequest
+from app.modules.notification.service import NotificationService
 from app.modules.borrowing.schema import (
     BorrowRequestResponse, BorrowRequestCreateRequest, BorrowRequestCreateResponse,
     BorrowRequestPaginatedResponse, BorrowStatusUpdateResponse,
@@ -120,6 +121,15 @@ class BorrowService:
             raise HTTPException(status_code=409, detail="You already have a pending request for this book")
 
         borrow = self.repo.create_borrow_request(user.id, data.book_id)
+
+        # Notify book owner
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=book.owner_id,
+            title="New Borrow Request",
+            message=f"{user.full_name} has requested to borrow your book '{book.title}'."
+        )
+
         return BorrowRequestCreateResponse(id=borrow.id, status=borrow.status)
 
     def get_borrowed_books(self, user: User, pagination: PaginationParams) -> BorrowRequestPaginatedResponse:
@@ -185,6 +195,14 @@ class BorrowService:
         # Update book availability
         self.repo.update_book_availability(borrow.book_id, "borrowed")
 
+        # Notify borrower
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=borrow.borrower_id,
+            title="Borrow Request Approved",
+            message=f"Your request to borrow '{borrow.book.title}' has been approved! Due date: {due_date.strftime('%Y-%m-%d')}."
+        )
+
         return BorrowStatusUpdateResponse(
             id=borrow.id,
             status="active",
@@ -207,6 +225,15 @@ class BorrowService:
             raise HTTPException(status_code=400, detail=f"Cannot reject a {borrow.status} request")
 
         borrow = self.repo.update_status(request_id, "cancelled")
+
+        # Notify borrower
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=borrow.borrower_id,
+            title="Borrow Request Rejected",
+            message=f"Your request to borrow '{borrow.book.title}' was rejected by the owner."
+        )
+
         return BorrowStatusUpdateResponse(
             id=borrow.id, status="cancelled", message="Borrow request rejected"
         )
@@ -227,6 +254,15 @@ class BorrowService:
             raise HTTPException(status_code=400, detail=f"Cannot cancel a {borrow.status} request")
 
         borrow = self.repo.update_status(request_id, "cancelled")
+
+        # Notify owner
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=borrow.book.owner_id,
+            title="Borrow Request Cancelled",
+            message=f"{user.full_name} has cancelled their request to borrow '{borrow.book.title}'."
+        )
+
         return BorrowStatusUpdateResponse(
             id=borrow.id, status="cancelled", message="Borrow request cancelled"
         )
@@ -250,6 +286,15 @@ class BorrowService:
             request_id, "returned",
             returned_at=datetime.now(timezone.utc),
         )
+
+        # Notify owner
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=borrow.book.owner_id,
+            title="Book Returned",
+            message=f"{user.full_name} has marked '{borrow.book.title}' as returned. Please confirm receipt."
+        )
+
         return BorrowStatusUpdateResponse(
             id=borrow.id, status="returned", message="Book marked as returned. Waiting for owner confirmation."
         )
@@ -293,6 +338,14 @@ class BorrowService:
             {"credits": User.credits + lender_points}
         )
         self.db.commit()
+
+        # Send DB notification
+        ns = NotificationService(self.db)
+        ns.create_notification(
+            user_id=borrow.borrower_id,
+            title="Return Confirmed",
+            message=f"The owner confirmed the return of '{borrow.book.title}'. You earned {borrower_points} credits!"
+        )
 
         # Send push notifications via Celery
         try:

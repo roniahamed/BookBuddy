@@ -23,6 +23,14 @@ class NotificationService:
     def __init__(self, db: Session):
         self.db = db
 
+    def create_notification(self, user_id: int, title: str, message: str) -> Notification:
+        """Create and save a notification to the database."""
+        n = Notification(user_id=user_id, title=title, message=message)
+        self.db.add(n)
+        self.db.commit()
+        self.db.refresh(n)
+        return n
+
     def get_preferences(self, user: User) -> NotificationPreferencesResponse:
         """Get current notification preferences."""
         settings = self.db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
