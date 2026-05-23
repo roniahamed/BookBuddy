@@ -122,8 +122,10 @@ class BookCreateRequest(BaseModel):
     """Upload Book modal form fields."""
     title: str = Field(..., min_length=1, max_length=255, description="Book title")
     author_id: Optional[int] = Field(None, description="Author ID from /authors")
+    author_name: Optional[str] = Field(None, description="Author name if new")
     genre_id: Optional[int] = Field(None, description="Genre ID from /genres")
     description: Optional[str] = Field(None, description="Book description and condition")
+    language: Optional[str] = Field("English", description="Book language")
     front_cover_url: Optional[str] = Field(None, max_length=500, description="Front cover image URL")
     back_cover_url: Optional[str] = Field(None, max_length=500, description="Back cover image URL")
     condition: str = Field("Good", description="Book condition: New | Good | Used")

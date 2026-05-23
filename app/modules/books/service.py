@@ -248,24 +248,40 @@ class BookService:
     def create_book(self, user: User, data: BookCreateRequest) -> BookDetailResponse:
         """Upload new book (Upload Book modal)."""
         author = self.repo.get_or_create_author(data.author_name)
-        book = self.repo.create_book({
+        book = self.repo.create_book(user.id, {
             "title": data.title,
             "author_id": author.id,
             "description": data.description,
             "front_cover_url": data.front_cover_url,
             "back_cover_url": data.back_cover_url,
             "condition": data.condition,
-            "language": data.language,
-            "owner_id": user.id,
             "genre_id": data.genre_id,
             "borrow_duration_days": data.borrow_duration_days,
+            "approval_status": "pending"
         })
 
         log_platform_activity(
-            self.db, user.id, "book_added",
-            f"{user.full_name} shared a new book: '{book.title}'"
+            self.repo.db, user.id, "book_added",
+            f"{user.full_name} shared a new book: '{book.title}' (Pending Approval)"
         )
-        self.db.commit()
+
+        # Notify admins
+        admins = self.repo.db.query(User).filter(User.role == "admin").all()
+        notification_service = NotificationService(self.repo.db)
+        from app.core.firebase import send_push_notification
+        from app.modules.users.model import UserFCMToken
+        
+        for admin_usr in admins:
+            notification_service.create_notification(
+                user_id=admin_usr.id,
+                title="New Book Uploaded",
+                message=f"'{book.title}' needs approval.",
+            )
+            tokens = self.repo.db.query(UserFCMToken).filter(UserFCMToken.user_id == admin_usr.id).all()
+            fcm_tokens = [t.token for t in tokens]
+            send_push_notification(fcm_tokens, "New Book Uploaded", f"'{book.title}' needs approval.")
+
+        self.repo.db.commit()
 
         return self.get_book_detail(book.id, user)
 

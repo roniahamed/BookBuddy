@@ -51,6 +51,7 @@ class Book(Base):
     latitude = Column(Float, nullable=True, comment="GPS latitude for distance calculation")
     longitude = Column(Float, nullable=True, comment="GPS longitude for distance calculation")
     availability = Column(String(20), default="available", index=True, comment="Enum: available | borrowed | unavailable")
+    approval_status = Column(String(20), default="pending", index=True, comment="Enum: pending | approved | rejected")
     avg_rating = Column(Float, default=0.00, comment="Computed average from reviews")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

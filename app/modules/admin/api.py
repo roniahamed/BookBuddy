@@ -278,13 +278,14 @@ async def list_books(
     search: Optional[str] = Query(None, description="Search by title or author"),
     availability: Optional[str] = Query(None, description="Filter by availability: available | borrowed | unavailable"),
     genre_id: Optional[int] = Query(None, description="Filter by genre ID"),
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(20, ge=1, le=100, description="Items per page"),
+    approval_status: Optional[str] = Query(None, description="Filter by approval status: pending | approved | rejected"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     service = AdminManagementService(db)
-    return service.list_books(search, availability, genre_id, page, size)
+    return service.list_books(search, availability, genre_id, approval_status, page, size)
 
 
 @router.patch(
@@ -305,7 +306,35 @@ async def update_book(
     db: Session = Depends(get_db),
 ):
     service = AdminManagementService(db)
-    return service.update_book(book_id, data)
+    return service.update_book(book_id, admin, data)
+
+@router.patch(
+    "/books/{book_id}/approve",
+    response_model=AdminBookActionResponse,
+    summary="Approve a pending book",
+    description="Mark a book as approved so it appears on the public platform.",
+)
+async def approve_book(
+    book_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    service = AdminManagementService(db)
+    return service.approve_book(book_id, admin)
+
+@router.patch(
+    "/books/{book_id}/reject",
+    response_model=AdminBookActionResponse,
+    summary="Reject a pending book",
+    description="Mark a book as rejected. It will not appear on the platform.",
+)
+async def reject_book(
+    book_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    service = AdminManagementService(db)
+    return service.reject_book(book_id, admin)
 
 
 @router.delete(

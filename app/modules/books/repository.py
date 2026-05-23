@@ -60,7 +60,7 @@ class BookRepository:
         user_id: Optional[int] = None,
     ) -> tuple[list[Book], int]:
         """Browse Books with search, filter, sort, and pagination."""
-        query = self._base_book_query()
+        query = self._base_book_query().filter(Book.approval_status == "approved")
 
         # Search (title, author, genre name)
         if filters.search:
@@ -138,6 +138,7 @@ class BookRepository:
                 Book.latitude.between(lat - lat_delta, lat + lat_delta),
                 Book.longitude.between(lon - lon_delta, lon + lon_delta),
                 Book.availability == "available",
+                Book.approval_status == "approved",
             )
         )
         total = query.count()
@@ -169,6 +170,7 @@ class BookRepository:
                     Book.genre_id.in_(genre_ids),
                     Book.owner_id != user_id,
                     Book.availability == "available",
+                    Book.approval_status == "approved",
                 )
             )
             total = query.count()
@@ -178,20 +180,20 @@ class BookRepository:
 
         query = (
             self._base_book_query()
-            .filter(Book.availability == "available", Book.owner_id != user_id)
+            .filter(Book.availability == "available", Book.owner_id != user_id, Book.approval_status == "approved")
         )
         total = query.count()
         books = query.order_by(desc(Book.avg_rating), desc(Book.created_at)).offset(offset).limit(limit).all()
         return books, total
 
     def get_new_arrivals(self, limit: int = 20, offset: int = 0) -> tuple[list[Book], int]:
-        query = self._base_book_query().filter(Book.availability == "available")
+        query = self._base_book_query().filter(Book.availability == "available", Book.approval_status == "approved")
         total = query.count()
         books = query.order_by(desc(Book.created_at)).offset(offset).limit(limit).all()
         return books, total
 
     def get_top_rated(self, limit: int = 20, offset: int = 0) -> tuple[list[Book], int]:
-        query = self._base_book_query().filter(Book.availability == "available")
+        query = self._base_book_query().filter(Book.availability == "available", Book.approval_status == "approved")
         total = query.count()
         books = query.order_by(desc(Book.avg_rating), desc(Book.created_at)).offset(offset).limit(limit).all()
         return books, total

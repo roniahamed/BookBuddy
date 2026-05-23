@@ -73,6 +73,7 @@ class AdminStatsResponse(BaseModel):
     pending_borrow_requests: int = 0
     active_borrow_requests: int = 0
     overdue_borrow_requests: int = 0
+    pending_book_approvals: int = 0
     total_reviews: int = 0
     avg_platform_rating: float = 0.0
 
@@ -177,17 +178,21 @@ class AdminUserActionResponse(BaseModel):
     is_active: bool
 
 
+class AdminUserListMetrics(BaseModel):
+    total_members: int = 0
+    total_borrow_requests: int = 0
+    avg_rating: float = 0.0
+
 class AdminUserListResponse(BaseModel):
-    """Paginated user list."""
+    """Paginated user list with metrics."""
+    metrics: AdminUserListMetrics
     items: List[AdminUserListItem] = []
     total: int = 0
     page: int = 1
     size: int = 20
     pages: int = 1
-
-    total_members: int = 0
-    total_borrow_requests: int = 0
-    avg_rating: float = 0.0
+    has_next: bool = False
+    has_prev: bool = False
 
 
 # ─── Book Management ──────────────────────────────────────
@@ -205,6 +210,7 @@ class AdminBookListItem(BaseModel):
     owner_avatar_url: Optional[str] = None
     genre_name: Optional[str] = None
     availability: str
+    approval_status: str
     condition: str
     avg_rating: float = 0.0
     created_at: Optional[datetime] = None
@@ -229,14 +235,21 @@ class AdminBookActionResponse(BaseModel):
     message: str
     book_id: int
 
+class AdminBookListMetrics(BaseModel):
+    total_collection: int = 0
+    active_borrows: int = 0
+    pending_approvals: int = 0
 
 class AdminBookListResponse(BaseModel):
-    """Paginated book list."""
+    """Paginated book list with metrics."""
+    metrics: AdminBookListMetrics
     items: List[AdminBookListItem] = []
     total: int = 0
     page: int = 1
     size: int = 20
     pages: int = 1
+    has_next: bool = False
+    has_prev: bool = False
 
 
 # ─── Reviews & Ratings Monitoring ─────────────────────────

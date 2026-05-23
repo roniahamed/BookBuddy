@@ -21,6 +21,7 @@ from app.modules.admin.schema import (
     ContactMessageListResponse, ContactMessageResponse,
     AdminBorrowListResponse, AdminActivityListResponse,
 )
+from app.modules.users.model import User
 
 logger = logging.getLogger(__name__)
 
@@ -147,14 +148,18 @@ class AdminManagementService:
         platform_stats = self.repo.get_platform_stats()
 
         return AdminUserListResponse(
+            metrics={
+                "total_members": platform_stats.get("total_users", 0),
+                "total_borrow_requests": platform_stats.get("total_borrow_requests", 0),
+                "avg_rating": platform_stats.get("avg_platform_rating", 0.0)
+            },
             items=items, 
             total=total, 
             page=page, 
             size=size, 
             pages=pages,
-            total_members=platform_stats.get("total_users", 0),
-            total_borrow_requests=platform_stats.get("total_borrow_requests", 0),
-            avg_rating=platform_stats.get("avg_platform_rating", 0.0)
+            has_next=page < pages,
+            has_prev=page > 1
         )
 
     def get_user_detail(self, user_id: int) -> AdminUserDetailResponse:
@@ -253,10 +258,19 @@ class AdminManagementService:
         search=None,
         availability=None,
         genre_id=None,
+        approval_status=None,
         page: int = 1,
         size: int = 20,
     ) -> AdminBookListResponse:
-        books, total = self.repo.get_all_books(search, availability, genre_id, page, size)
+        from app.modules.books.model import Book
+        
+        books, total = self.repo.get_all_books(search, availability, genre_id, approval_status, page, size)
+        
+        # Calculate global metrics
+        total_collection = self.db.query(Book).count()
+        active_borrows = self.db.query(Book).filter(Book.availability == "borrowed").count()
+        pending_approvals = self.db.query(Book).filter(Book.approval_status == "pending").count()
+        
         items = []
         for book in books:
             items.append(AdminBookListItem(
@@ -271,14 +285,28 @@ class AdminManagementService:
                 owner_avatar_url=book.owner.avatar_url if book.owner else None,
                 genre_name=book.genre.name if book.genre else None,
                 availability=book.availability,
+                approval_status=book.approval_status,
                 condition=book.condition,
                 avg_rating=book.avg_rating,
                 created_at=book.created_at,
             ))
         pages = math.ceil(total / size) if total > 0 else 1
-        return AdminBookListResponse(items=items, total=total, page=page, size=size, pages=pages)
+        return AdminBookListResponse(
+            metrics={
+                "total_collection": total_collection,
+                "active_borrows": active_borrows,
+                "pending_approvals": pending_approvals
+            },
+            items=items, 
+            total=total, 
+            page=page, 
+            size=size, 
+            pages=pages,
+            has_next=page < pages,
+            has_prev=page > 1
+        )
 
-    def update_book(self, book_id: int, data: AdminBookUpdateRequest) -> AdminBookActionResponse:
+    def update_book(self, book_id: int, user: User, data: AdminBookUpdateRequest) -> AdminBookActionResponse:
         book = self.repo.get_book_by_id(book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found")
@@ -295,12 +323,49 @@ class AdminManagementService:
                 body=f"Your book '{book.title}' has been marked unavailable by an admin.",
             )
 
+        if data.description is not None:
+            log_msg += f", description updated"
+        log_platform_activity(self.db, user.id, "book_updated", log_msg)
+
         return AdminBookActionResponse(
-            message=f"Book '{updated.title}' has been updated.",
-            book_id=book_id,
+            message=f"Book '{updated.title}' updated successfully.",
+            book_id=updated.id,
         )
 
-    def delete_book(self, book_id: int) -> AdminBookActionResponse:
+    def approve_book(self, book_id: int, user: User) -> AdminBookActionResponse:
+        book = self.repo.get_book_by_id(book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+            
+        book.approval_status = "approved"
+        self.db.commit()
+        
+        log_platform_activity(self.db, user.id, "book_approved", f"Admin approved book: '{book.title}'")
+        
+        # Notify the owner
+        if book.owner:
+            self._notify_user(book.owner, "Book Approved", f"Your uploaded book '{book.title}' has been approved and is now visible to the community!")
+        
+        return AdminBookActionResponse(message="Book approved successfully.", book_id=book.id)
+
+    def reject_book(self, book_id: int, user: User) -> AdminBookActionResponse:
+        book = self.repo.get_book_by_id(book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+            
+        book.approval_status = "rejected"
+        book.availability = "unavailable" # Ensure it can't be borrowed
+        self.db.commit()
+        
+        log_platform_activity(self.db, user.id, "book_rejected", f"Admin rejected book: '{book.title}'")
+        
+        # Notify the owner
+        if book.owner:
+            self._notify_user(book.owner, "Book Rejected", f"Your uploaded book '{book.title}' was rejected and will not be displayed on the platform.")
+        
+        return AdminBookActionResponse(message="Book rejected successfully.", book_id=book.id)
+
+    def delete_book(self, book_id: int, user: User) -> AdminBookActionResponse:
         book = self.repo.get_book_by_id(book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found")
