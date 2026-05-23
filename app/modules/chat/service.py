@@ -64,74 +64,12 @@ class ChatService:
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
 
-    def create_conversation(self, user: User, data: ConversationCreateRequest) -> ConversationResponse:
-        if data.participant_id == user.id:
-            raise HTTPException(status_code=400, detail="Cannot start a conversation with yourself")
+    # create_conversation removed as send_message handles it dynamically
 
-        other_user = self.db.query(User).filter(User.id == data.participant_id).first()
-        if not other_user:
-            raise HTTPException(
-                status_code=404,
-                detail=f"User with id={data.participant_id} not found"
-            )
-
-        # Validate book_id if provided — gives a clear error instead of a DB FK violation
-        if data.book_id is not None:
-            from app.modules.books.model import Book
-            book = self.db.query(Book).filter(Book.id == data.book_id).first()
-            if not book:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Book with id={data.book_id} not found. "
-                           "Conversations are between users — you can omit book_id for a general chat."
-                )
-
-        existing = self.repo.find_existing_conversation(user.id, data.participant_id, data.book_id)
-        if existing:
-            conv = self.repo.get_conversation_by_id(existing.id)
-            if data.initial_message:
-                self.repo.send_message(conv.id, user.id, data.initial_message)
-                self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
-
-            me, other_user = self._get_participants(conv, user.id)
-            return ConversationResponse(
-                id=conv.id,
-                other_user=other_user,
-                book_id=conv.book_id,
-                book_title=conv.book.title if conv.book else None,
-                book_image=conv.book.front_cover_url if conv.book else None,
-                last_message=data.initial_message,
-                last_message_at=conv.last_message_at,
-                unread_count=0,
-                created_at=conv.created_at,
-            )
-
-        conv = self.repo.create_conversation(user.id, data.participant_id, data.book_id)
-        conv = self.repo.get_conversation_by_id(conv.id)
-
-        if data.initial_message:
-            self.repo.send_message(conv.id, user.id, data.initial_message)
-            self._notify_new_message(data.participant_id, user.full_name, data.initial_message)
-
-        me, other_user = self._get_participants(conv, user.id)
-        return ConversationResponse(
-            id=conv.id,
-            other_user=other_user,
-            book_id=conv.book_id,
-            book_title=conv.book.title if conv.book else None,
-            book_image=conv.book.front_cover_url if conv.book else None,
-            last_message=data.initial_message,
-            last_message_at=conv.last_message_at,
-            unread_count=0,
-            created_at=conv.created_at,
-        )
-
-    def get_conversation(self, conv_id: int, user: User) -> ConversationResponse:
-        conv = self.repo.get_conversation_by_id(conv_id)
+    def get_conversation(self, other_user_id: int, user: User) -> ConversationResponse:
+        conv = self.repo.find_existing_conversation(user.id, other_user_id)
         if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
-        if conv.participant_1 != user.id and conv.participant_2 != user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
 
         me, other_user = self._get_participants(conv, user.id)
         return ConversationResponse(
@@ -144,15 +82,18 @@ class ChatService:
             created_at=conv.created_at,
         )
 
-    def get_messages(self, conv_id: int, user: User, pagination: PaginationParams) -> MessageListResponse:
-        conv = self.repo.get_conversation_by_id(conv_id)
+    def get_messages(self, other_user_id: int, user: User, pagination: PaginationParams) -> MessageListResponse:
+        conv = self.repo.find_existing_conversation(user.id, other_user_id)
         if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        if conv.participant_1 != user.id and conv.participant_2 != user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            return MessageListResponse(
+                items=[], 
+                total=0, page=pagination.page,
+                per_page=pagination.per_page, pages=0,
+                has_next=False, has_prev=False
+            )
 
         # Returns decrypted message dicts
-        messages, total = self.repo.get_messages(conv_id, pagination.offset, pagination.per_page)
+        messages, total = self.repo.get_messages(conv.id, pagination.offset, pagination.per_page)
 
         current_user_brief = ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url)
         other_user_model = conv.participant_2_user if conv.participant_1 == user.id else conv.participant_1_user
@@ -172,7 +113,7 @@ class ChatService:
 
             items.append(MessageResponse(
                 id=m["id"],
-                conversation_id=conv_id,
+                conversation_id=conv.id,
                 sender=msg_sender,
                 receiver=msg_receiver,
                 body=m["body"],  # Decrypted plaintext
@@ -191,14 +132,16 @@ class ChatService:
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
         )
 
-    def send_message(self, conv_id: int, user: User, data: MessageCreateRequest) -> MessageResponse:
-        conv = self.repo.get_conversation_by_id(conv_id)
+    def send_message(self, other_user_id: int, user: User, data: MessageCreateRequest) -> MessageResponse:
+        conv = self.repo.find_existing_conversation(user.id, other_user_id)
         if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        if conv.participant_1 != user.id and conv.participant_2 != user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            # Check if other_user exists
+            other_user = self.db.query(User).filter(User.id == other_user_id).first()
+            if not other_user:
+                raise HTTPException(status_code=404, detail=f"User with id={other_user_id} not found")
+            conv = self.repo.create_conversation(user.id, other_user_id)
 
-        result = self.repo.send_message(conv_id, user.id, data.body)
+        result = self.repo.send_message(conv.id, user.id, data.body)
 
         # Send push notification to recipient
         recipient_id = conv.participant_2 if conv.participant_1 == user.id else conv.participant_1
@@ -207,7 +150,7 @@ class ChatService:
 
         return MessageResponse(
             id=result["id"],
-            conversation_id=conv_id,
+            conversation_id=conv.id,
             sender=ChatUserBrief(id=user.id, full_name=user.full_name, avatar_url=user.avatar_url),
             receiver=None,
             body=result["body"],  # Plaintext returned to sender
@@ -215,24 +158,20 @@ class ChatService:
             sent_at=result["sent_at"],
         )
 
-    def mark_read(self, conv_id: int, user: User) -> dict:
-        conv = self.repo.get_conversation_by_id(conv_id)
+    def mark_read(self, other_user_id: int, user: User) -> dict:
+        conv = self.repo.find_existing_conversation(user.id, other_user_id)
         if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        if conv.participant_1 != user.id and conv.participant_2 != user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
+            return {"message": "No conversation found"}
 
-        count = self.repo.mark_messages_read(conv_id, user.id)
+        count = self.repo.mark_messages_read(conv.id, user.id)
         return {"message": f"Marked {count} messages as read"}
 
-    def archive_conversation(self, conv_id: int, user: User) -> dict:
-        conv = self.repo.get_conversation_by_id(conv_id)
+    def archive_conversation(self, other_user_id: int, user: User) -> dict:
+        conv = self.repo.find_existing_conversation(user.id, other_user_id)
         if not conv:
             raise HTTPException(status_code=404, detail="Conversation not found")
-        if conv.participant_1 != user.id and conv.participant_2 != user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
 
-        self.repo.archive_conversation(conv_id, user.id)
+        self.repo.archive_conversation(conv.id, user.id)
         return {"message": "Conversation archived"}
 
     def get_unread_count(self, user: User) -> UnreadCountResponse:
