@@ -262,7 +262,7 @@ class AdminManagementService:
             items.append(AdminBookListItem(
                 id=book.id,
                 title=book.title,
-                author_name=book.author_name,
+                author_name=book.author.name if book.author else "",
                 front_cover_url=book.front_cover_url,
                 back_cover_url=book.back_cover_url,
                 owner_id=book.owner_id,
