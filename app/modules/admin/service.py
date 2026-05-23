@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from app.modules.admin.repository import AdminConfigRepository, AdminManagementRepository
+from app.modules.admin.model import ActivityLog
 from app.modules.admin.schema import (
     AppConfigResponse, AppConfigListResponse, AppConfigUpdateRequest,
     AdminStatsResponse,
@@ -18,9 +19,15 @@ from app.modules.admin.schema import (
     AdminReviewListItem, AdminReviewActionResponse, AdminReviewListResponse,
     AdminBroadcastNotificationRequest, AdminBroadcastNotificationResponse,
     ContactMessageListResponse, ContactMessageResponse,
+    AdminBorrowListResponse, AdminActivityListResponse,
 )
 
 logger = logging.getLogger(__name__)
+
+def log_platform_activity(db: Session, user_id: int, action_type: str, description: str) -> None:
+    """Helper to log activities. Assumes caller will commit the session."""
+    activity = ActivityLog(user_id=user_id, action_type=action_type, description=description)
+    db.add(activity)
 
 # ─── Default Configs ──────────────────────────────────────
 DEFAULT_CONFIGS: dict[str, tuple[str, str]] = {
@@ -423,7 +430,7 @@ class AdminManagementService:
             from app.background.tasks import send_notification_email_task
             send_notification_email_task.delay(user.email, title, body, user.full_name)
         except Exception as exc:
-            logger.warning("Email notify failed for user %s: %s", user.id, exc)
+            logger.warning("Email notify failed for user %s: %s", user.email, exc)
 
     # ── Contact Messages ──────────────────────────────────
 
@@ -438,3 +445,31 @@ class AdminManagementService:
         if not message:
             raise HTTPException(status_code=404, detail="Contact message not found")
         return ContactMessageResponse.model_validate(message)
+
+    # ── Borrows & Activities Management ───────────────────
+
+    def list_borrows(self, status: str | None, page: int, size: int) -> AdminBorrowListResponse:
+        items, total = self.repo.get_all_borrows(status, page, size)
+        pages = math.ceil(total / size) if size > 0 else 1
+        mapped_items = [{
+            "id": b.id,
+            "requester_name": b.borrower.full_name if b.borrower else "",
+            "requester_avatar_url": b.borrower.avatar_url if b.borrower else None,
+            "book_title": b.book.title if b.book else "",
+            "status": b.status,
+            "requested_date": b.requested_at
+        } for b in items]
+        return AdminBorrowListResponse(items=mapped_items, total=total, page=page, size=size, pages=pages)
+
+    def list_activities(self, page: int, size: int) -> AdminActivityListResponse:
+        items, total = self.repo.get_activities(page, size)
+        pages = math.ceil(total / size) if size > 0 else 1
+        mapped_items = [{
+            "id": a.id,
+            "user_name": a.user.full_name if a.user else "",
+            "user_avatar_url": a.user.avatar_url if a.user else None,
+            "action_type": a.action_type,
+            "description": a.description,
+            "created_at": a.created_at
+        } for a in items]
+        return AdminActivityListResponse(items=mapped_items, total=total, page=page, size=size, pages=pages)

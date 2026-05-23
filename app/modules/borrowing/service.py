@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 from app.modules.borrowing.repository import BorrowRepository
 from app.modules.borrowing.model import BorrowRequest
 from app.modules.notification.service import NotificationService
+from app.modules.admin.service import log_platform_activity
 from app.modules.borrowing.schema import (
     BorrowRequestResponse, BorrowRequestCreateRequest, BorrowRequestCreateResponse,
     BorrowRequestPaginatedResponse, BorrowStatusUpdateResponse,
@@ -129,6 +130,12 @@ class BorrowService:
             title="New Borrow Request",
             message=f"{user.full_name} has requested to borrow your book '{book.title}'."
         )
+
+        log_platform_activity(
+            self.db, user.id, "borrow_requested",
+            f"{user.full_name} requested a borrow for '{book.title}'"
+        )
+        self.db.commit()
 
         return BorrowRequestCreateResponse(id=borrow.id, status=borrow.status)
 

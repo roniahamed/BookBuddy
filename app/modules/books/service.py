@@ -10,6 +10,7 @@ from app.modules.books.repository import BookRepository
 from app.modules.books.filters import BookFilters
 from app.modules.books.model import Book
 from app.modules.notification.service import NotificationService
+from app.modules.admin.service import log_platform_activity
 from app.modules.books.schema import (
     BookListItemResponse, BookDetailResponse, BookCreateRequest, BookUpdateRequest,
     BookPaginatedResponse, BookOwnerBrief, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
@@ -246,8 +247,26 @@ class BookService:
 
     def create_book(self, user: User, data: BookCreateRequest) -> BookDetailResponse:
         """Upload new book (Upload Book modal)."""
-        book_data = data.model_dump(exclude_unset=True)
-        book = self.repo.create_book(owner_id=user.id, data=book_data)
+        author = self.repo.get_or_create_author(data.author_name)
+        book = self.repo.create_book({
+            "title": data.title,
+            "author_id": author.id,
+            "description": data.description,
+            "front_cover_url": data.front_cover_url,
+            "back_cover_url": data.back_cover_url,
+            "condition": data.condition,
+            "language": data.language,
+            "owner_id": user.id,
+            "genre_id": data.genre_id,
+            "borrow_duration_days": data.borrow_duration_days,
+        })
+
+        log_platform_activity(
+            self.db, user.id, "book_added",
+            f"{user.full_name} shared a new book: '{book.title}'"
+        )
+        self.db.commit()
+
         return self.get_book_detail(book.id, user)
 
     def update_book(self, book_id: int, user: User, data: BookUpdateRequest) -> BookDetailResponse:
@@ -448,6 +467,12 @@ class BookService:
         # Update denormalized avg_rating fields
         self.repo.update_book_avg_rating(borrow.book_id)
         self.repo.update_user_avg_rating(reviewee_id)
+
+        log_platform_activity(
+            self.db, user.id, "review_added",
+            f"{user.full_name} left a {data.rating}-star review for '{book.title}'"
+        )
+        self.db.commit()
 
         return ReviewResponse(
             id=review.id,

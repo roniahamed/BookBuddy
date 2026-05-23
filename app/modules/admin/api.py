@@ -47,6 +47,7 @@ from app.modules.admin.schema import (
     AdminReviewListResponse, AdminReviewActionResponse,
     AdminBroadcastNotificationRequest, AdminBroadcastNotificationResponse,
     ContactMessageListResponse, ContactMessageResponse,
+    AdminBorrowListResponse, AdminActivityListResponse,
 )
 
 router = APIRouter()
@@ -435,3 +436,40 @@ async def get_contact_message(
 ):
     service = AdminManagementService(db)
     return service.get_contact_message(message_id)
+
+
+# ═══════════════════════════════════════════════════════════
+# BORROWS & ACTIVITIES
+# ═══════════════════════════════════════════════════════════
+
+@router.get(
+    "/borrows",
+    response_model=AdminBorrowListResponse,
+    summary="List borrow requests",
+)
+async def list_borrows(
+    status: Optional[str] = Query(None, description="Filter by status (e.g. pending, active, returned)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Items per page"),
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """List paginated borrow requests."""
+    service = AdminManagementService(db)
+    return service.list_borrows(status, page, size)
+
+
+@router.get(
+    "/activities",
+    response_model=AdminActivityListResponse,
+    summary="List platform activities",
+)
+async def list_activities(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Items per page"),
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """List paginated platform activities."""
+    service = AdminManagementService(db)
+    return service.list_activities(page, size)
