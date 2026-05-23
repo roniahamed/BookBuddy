@@ -125,6 +125,7 @@ def setup_admin(app):
     """Initializes and registers SQLAlchemy Admin dashboard to FastAPI app."""
     admin = Admin(
         app, engine, 
+        base_url="/admin-ui",
         title="BookBuddy Admin Panel", 
         logo_url="https://fastapi.tiangolo.com/img/favicon.png",
         authentication_backend=authentication_backend

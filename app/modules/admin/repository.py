@@ -69,6 +69,7 @@ class AdminManagementRepository:
         total_books = self.db.query(func.count(Book.id)).scalar() or 0
         available_books = self.db.query(func.count(Book.id)).filter(Book.availability == "available").scalar() or 0
         borrowed_books = self.db.query(func.count(Book.id)).filter(Book.availability == "borrowed").scalar() or 0
+        pending_book_approvals = self.db.query(func.count(Book.id)).filter(Book.approval_status == "pending").scalar() or 0
 
         total_borrows = self.db.query(func.count(BorrowRequest.id)).scalar() or 0
         pending_borrows = self.db.query(func.count(BorrowRequest.id)).filter(BorrowRequest.status == "pending").scalar() or 0
@@ -112,6 +113,7 @@ class AdminManagementRepository:
             "total_books": total_books,
             "available_books": available_books,
             "borrowed_books": borrowed_books,
+            "pending_book_approvals": pending_book_approvals,
             "total_borrow_requests": total_borrows,
             "pending_borrow_requests": pending_borrows,
             "active_borrow_requests": active_borrows,
@@ -203,21 +205,26 @@ class AdminManagementRepository:
         search: Optional[str] = None,
         availability: Optional[str] = None,
         genre_id: Optional[int] = None,
+        approval_status: Optional[str] = None,
         page: int = 1,
         size: int = 20,
     ) -> tuple[list[Book], int]:
         """Return paginated book list with optional filters."""
-        query = self.db.query(Book)
+        from app.modules.books.model import Author
+        
+        query = self.db.query(Book).outerjoin(Author, Book.author_id == Author.id)
 
         if search:
             term = f"%{search}%"
             query = query.filter(
-                or_(Book.title.ilike(term), Book.author_name.ilike(term))
+                or_(Book.title.ilike(term), Author.name.ilike(term))
             )
         if availability:
             query = query.filter(Book.availability == availability)
         if genre_id:
             query = query.filter(Book.genre_id == genre_id)
+        if approval_status:
+            query = query.filter(Book.approval_status == approval_status)
 
         total = query.count()
         items = query.order_by(Book.created_at.desc()).offset((page - 1) * size).limit(size).all()
