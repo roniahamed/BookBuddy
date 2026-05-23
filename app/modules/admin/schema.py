@@ -124,6 +124,7 @@ class AdminUserListItem(BaseModel):
     credits: int = 0
     avg_rating: float = 0.0
     books_uploaded: int = 0
+    borrow_count: int = 0
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -183,6 +184,10 @@ class AdminUserListResponse(BaseModel):
     page: int = 1
     size: int = 20
     pages: int = 1
+
+    total_members: int = 0
+    total_borrow_requests: int = 0
+    avg_rating: float = 0.0
 
 
 # ─── Book Management ──────────────────────────────────────

@@ -138,10 +138,24 @@ class AdminManagementService:
                 credits=user.credits,
                 avg_rating=user.avg_rating,
                 books_uploaded=stats["books_uploaded"],
+                borrow_count=stats["books_borrowed"],
                 created_at=user.created_at,
             ))
         pages = math.ceil(total / size) if total > 0 else 1
-        return AdminUserListResponse(items=items, total=total, page=page, size=size, pages=pages)
+        
+        # Get global metrics for the dashboard top cards
+        platform_stats = self.repo.get_platform_stats()
+
+        return AdminUserListResponse(
+            items=items, 
+            total=total, 
+            page=page, 
+            size=size, 
+            pages=pages,
+            total_members=platform_stats.get("total_users", 0),
+            total_borrow_requests=platform_stats.get("total_borrow_requests", 0),
+            avg_rating=platform_stats.get("avg_platform_rating", 0.0)
+        )
 
     def get_user_detail(self, user_id: int) -> AdminUserDetailResponse:
         user = self.repo.get_user_by_id(user_id)
