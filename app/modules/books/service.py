@@ -247,10 +247,17 @@ class BookService:
 
     def create_book(self, user: User, data: BookCreateRequest) -> BookDetailResponse:
         """Upload new book (Upload Book modal)."""
-        author = self.repo.get_or_create_author(data.author_name)
+        if data.author_id:
+            author_id = data.author_id
+        elif data.author_name:
+            author = self.repo.get_or_create_author(data.author_name)
+            author_id = author.id
+        else:
+            raise HTTPException(status_code=400, detail="Either author_id or author_name must be provided")
+
         book = self.repo.create_book(user.id, {
             "title": data.title,
-            "author_id": author.id,
+            "author_id": author_id,
             "description": data.description,
             "front_cover_image": data.front_cover_image,
             "back_cover_image": data.back_cover_image,
