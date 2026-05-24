@@ -401,6 +401,9 @@ class AdminManagementService:
         size: int = 20,
     ) -> AdminReviewListResponse:
         reviews, total = self.repo.get_all_reviews(book_id, min_rating, max_rating, page, size)
+        
+        platform_stats = self.repo.get_platform_stats()
+        
         items = []
         for review in reviews:
             items.append(AdminReviewListItem(
@@ -418,7 +421,19 @@ class AdminManagementService:
                 created_at=review.created_at,
             ))
         pages = math.ceil(total / size) if total > 0 else 1
-        return AdminReviewListResponse(items=items, total=total, page=page, size=size, pages=pages)
+        return AdminReviewListResponse(
+            metrics={
+                "total_reviews": platform_stats.get("total_reviews", 0),
+                "avg_rating": platform_stats.get("avg_platform_rating", 0.0)
+            },
+            items=items,
+            total=total,
+            page=page,
+            size=size,
+            pages=pages,
+            has_next=page < pages,
+            has_prev=page > 1
+        )
 
     def delete_review(self, review_id: int) -> AdminReviewActionResponse:
         review = self.repo.get_review_by_id(review_id)

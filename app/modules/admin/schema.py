@@ -278,13 +278,20 @@ class AdminReviewActionResponse(BaseModel):
     review_id: int
 
 
+class AdminReviewListMetrics(BaseModel):
+    total_reviews: int = 0
+    avg_rating: float = 0.0
+
 class AdminReviewListResponse(BaseModel):
     """Paginated review list."""
+    metrics: AdminReviewListMetrics
     items: List[AdminReviewListItem] = []
     total: int = 0
     page: int = 1
     size: int = 20
     pages: int = 1
+    has_next: bool = False
+    has_prev: bool = False
 
 
 # ─── Notifications Broadcast ──────────────────────────────
