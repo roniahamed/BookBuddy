@@ -409,3 +409,131 @@ Submit a community rating for a completed borrow transaction.
 ```
 
 **Response:** Created Review object (Same structure as 4.2 items)
+
+---
+
+## 5. Borrowing API
+**Base Path:** `/borrow-requests`
+
+### 5.1 Request to Borrow a Book
+**`POST /borrow-requests`**
+Submit a request to borrow a book (REQUEST BOOK button). The book must be available and you cannot borrow your own books. Duplicate pending requests are not allowed.
+*(Requires Authentication)*
+
+**Payload (JSON):**
+```json
+{
+  "book_id": 1
+}
+```
+
+**Response:** HTTP 201 Created
+```json
+{
+  "id": 1,
+  "status": "pending",
+  "message": "Borrow request submitted successfully"
+}
+```
+
+### 5.2 My Borrowed Books
+**`GET /borrow-requests/borrowed`**
+Get all books you have borrowed (Borrowed tab on Profile screen). Shows countdown timer 'Return in X days Y Hours' for active borrows. Includes 'Mark as Returned' action for active loans.
+*(Requires Authentication)*
+
+**Query Parameters:** `page`, `per_page`
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "status": "active",
+      "requested_at": "2026-05-24T00:00:00Z",
+      "borrowed_at": "2026-05-24T00:00:00Z",
+      "due_date": "2026-06-23T00:00:00Z",
+      "time_remaining": "30 days 0 Hours",
+      "book": {
+        "id": 1,
+        "title": "A Tale of Love and Darkness",
+        "author_name": "Amos Oz",
+        "front_cover_image": "http://...",
+        "avg_rating": 4.5
+      },
+      "borrower": {
+        "id": 3,
+        "full_name": "Alice Smith",
+        "avatar_url": "http://..."
+      }
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "per_page": 20,
+  "pages": 1,
+  "has_next": false,
+  "has_prev": false
+}
+```
+
+### 5.3 My Lent Out Books
+**`GET /borrow-requests/lent-out`**
+Get all books you have lent out to others (Lent Out tab on Profile screen). Shows 'Expected back in X days Y Hours' countdown for active loans. Includes 'Confirm Received' action for returned books.
+*(Requires Authentication)*
+
+**Query Parameters:** `page`, `per_page`
+
+**Response:** Paginated list (Same structure as 5.2 items)
+
+### 5.4 Borrow Request Details
+**`GET /borrow-requests/{request_id}`**
+Get details of a specific borrow request. Only accessible by the borrower or book owner.
+*(Requires Authentication)*
+
+**Path Parameters:**
+- `request_id` (int, required)
+
+**Response:** Single borrow request object (Same structure as 5.2 items)
+
+### 5.5 Approve Borrow Request
+**`PATCH /borrow-requests/{request_id}/approve`**
+Book owner approves a pending borrow request. Automatically starts the loan: sets status to 'active', records borrowed_at timestamp, and calculates due_date. The book's availability changes to 'borrowed'.
+*(Requires Authentication)*
+
+**Response:**
+```json
+{
+  "id": 1,
+  "status": "active",
+  "message": "Borrow request approved successfully"
+}
+```
+
+### 5.6 Reject Borrow Request
+**`PATCH /borrow-requests/{request_id}/reject`**
+Book owner rejects a pending borrow request. Status changes to 'cancelled'.
+*(Requires Authentication)*
+
+**Response:** Status Update object (Same structure as 5.5)
+
+### 5.7 Mark Book as Returned
+**`PATCH /borrow-requests/{request_id}/return`**
+Borrower marks a book as returned (Mark as Returned button on Borrowed tab). Status changes from 'active' to 'returned'. Owner still needs to confirm receipt.
+*(Requires Authentication)*
+
+**Response:** Status Update object (Same structure as 5.5)
+
+### 5.8 Confirm Book Received Back
+**`PATCH /borrow-requests/{request_id}/confirm`**
+Book owner confirms the returned book has been received (Confirm Received button on Lent Out tab). Status changes to 'confirmed'. Book becomes 'available' again. Credits are awarded: +5 to borrower, +10 to lender.
+*(Requires Authentication)*
+
+**Response:** Status Update object (Same structure as 5.5)
+
+### 5.9 Cancel Borrow Request
+**`POST /borrow-requests/{request_id}/cancel`**
+Borrower cancels a pending borrow request. Status changes to 'cancelled'.
+*(Requires Authentication)*
+
+**Response:** Status Update object (Same structure as 5.5)
