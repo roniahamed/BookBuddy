@@ -101,7 +101,7 @@ class BookRepository:
             query = query.order_by(asc(Book.title))
         elif filters.sort_by == "title_desc":
             query = query.order_by(desc(Book.title))
-        elif filters.sort_by == "nearby" and filters.user_lat and filters.user_lon:
+        elif (filters.sort_by in ("nearby", "distance")) and filters.user_lat and filters.user_lon:
             distance = _haversine_distance(
                 filters.user_lat, filters.user_lon, Book.latitude, Book.longitude
             )

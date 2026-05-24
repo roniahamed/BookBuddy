@@ -19,11 +19,14 @@ class BookFilters:
         availability: Optional[str] = Query(None, description="Filter by availability: available | borrowed"),
         sort_by: Optional[str] = Query(
             "newest",
-            description="Sort: newest | top_rated | nearby | title_asc | title_desc",
+            description="Sort: newest | top_rated | nearby | distance | title_asc | title_desc",
         ),
         # Location params for "Nearby" and "Books Near You"
         user_lat: Optional[float] = Query(None, description="User latitude for distance calculation"),
         user_lon: Optional[float] = Query(None, description="User longitude for distance calculation"),
+        lat: Optional[float] = Query(None, description="User latitude alias (lat)"),
+        lng: Optional[float] = Query(None, description="User longitude alias (lng)"),
+        lon: Optional[float] = Query(None, description="User longitude alias (lon)"),
         radius_km: Optional[float] = Query(None, description="Max distance in km (for Nearby filter)"),
     ):
         self.search = search
@@ -31,6 +34,6 @@ class BookFilters:
         self.condition = condition
         self.availability = availability
         self.sort_by = sort_by
-        self.user_lat = user_lat
-        self.user_lon = user_lon
+        self.user_lat = user_lat if user_lat is not None else lat
+        self.user_lon = user_lon if user_lon is not None else (lng if lng is not None else lon)
         self.radius_km = radius_km
