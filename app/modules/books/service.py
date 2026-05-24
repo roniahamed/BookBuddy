@@ -255,6 +255,14 @@ class BookService:
         else:
             raise HTTPException(status_code=400, detail="Either author_id or author_name must be provided")
 
+        if data.genre_id:
+            genre_id = data.genre_id
+        elif data.genre_name:
+            genre = self.repo.get_or_create_genre(data.genre_name)
+            genre_id = genre.id
+        else:
+            raise HTTPException(status_code=400, detail="Either genre_id or genre_name must be provided")
+
         book = self.repo.create_book(user.id, {
             "title": data.title,
             "author_id": author_id,
@@ -262,7 +270,7 @@ class BookService:
             "front_cover_image": data.front_cover_image,
             "back_cover_image": data.back_cover_image,
             "condition": data.condition,
-            "genre_id": data.genre_id,
+            "genre_id": genre_id,
             "borrow_duration_days": data.borrow_duration_days,
             "approval_status": "pending"
         })

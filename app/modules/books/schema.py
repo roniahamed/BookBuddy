@@ -124,6 +124,7 @@ class BookCreateRequest(BaseModel):
     author_id: Optional[int] = Field(None, description="Author ID from /authors")
     author_name: Optional[str] = Field(None, description="Author name if new")
     genre_id: Optional[int] = Field(None, description="Genre ID from /genres")
+    genre_name: Optional[str] = Field(None, description="Genre name if new")
     description: Optional[str] = Field(None, description="Book description and condition")
     language: Optional[str] = Field("English", description="Book language")
     front_cover_image: Optional[str] = Field(None, max_length=500, description="Front cover image URL")

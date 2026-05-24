@@ -167,6 +167,7 @@ List a new book for community sharing.
 - `author_id` (int, optional): Author ID from `/authors`
 - `author_name` (string, optional): Author name if creating a new one
 - `genre_id` (int, optional): Genre ID from `/genres`
+- `genre_name` (string, optional): Genre name if creating a new one
 - `description` (string, optional): Book description
 - `language` (string, default: "English"): Book language
 - `condition` (string, default: "Good"): "New", "Good", or "Used"
