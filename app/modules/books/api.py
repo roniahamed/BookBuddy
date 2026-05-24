@@ -20,7 +20,7 @@ Covers:
 - GET    /books/{id}/reviews   — Book reviews
 - GET    /users/{id}/reviews   — User community ratings
 """
-from fastapi import APIRouter, Depends, status, Query, File, UploadFile, Request
+from fastapi import APIRouter, Depends, status, Query, File, UploadFile, Request, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.dependencies import get_db
@@ -203,10 +203,58 @@ async def get_book_detail(
     ),
 )
 async def create_book(
-    data: BookCreateRequest,
+    request: Request,
+    title: str = Form(..., min_length=1, max_length=255, description="Book title"),
+    author_id: Optional[int] = Form(None, description="Author ID from /authors"),
+    author_name: Optional[str] = Form(None, description="Author name if new"),
+    genre_id: Optional[int] = Form(None, description="Genre ID from /genres"),
+    description: Optional[str] = Form(None, description="Book description and condition"),
+    language: Optional[str] = Form("English", description="Book language"),
+    condition: str = Form("Good", description="Book condition: New | Good | Used"),
+    borrow_duration_days: int = Form(30, ge=1, le=365, description="Max borrow days"),
+    location: Optional[str] = Form(None, max_length=255, description="Pickup address"),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    front_cover_image: Optional[UploadFile] = File(None, description="Front cover image file"),
+    back_cover_image: Optional[UploadFile] = File(None, description="Back cover image file"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    import uuid
+    import shutil
+    import os
+
+    def save_upload(file: UploadFile):
+        if not file or not file.filename:
+            return None
+        upload_dir = "static/uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        base_url = str(request.base_url).rstrip("/")
+        return f"{base_url}/static/uploads/{unique_filename}"
+
+    front_cover_url = save_upload(front_cover_image)
+    back_cover_url = save_upload(back_cover_image)
+
+    data = BookCreateRequest(
+        title=title,
+        author_id=author_id,
+        author_name=author_name,
+        genre_id=genre_id,
+        description=description,
+        language=language,
+        front_cover_image=front_cover_url,
+        back_cover_image=back_cover_url,
+        condition=condition,
+        borrow_duration_days=borrow_duration_days,
+        location=location,
+        latitude=latitude,
+        longitude=longitude
+    )
     service = BookService(db)
     return service.create_book(current_user, data)
 

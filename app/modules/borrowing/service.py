@@ -61,7 +61,7 @@ def _borrow_to_response(borrow: BorrowRequest) -> BorrowRequestResponse:
             id=borrow.book.id,
             title=borrow.book.title,
             author_name=borrow.book.author.name if borrow.book.author else None,
-            front_cover_url=borrow.book.front_cover_url,
+            front_cover_image=borrow.book.front_cover_image,
             description=borrow.book.description,
             avg_rating=borrow.book.avg_rating or 0.0,
         )

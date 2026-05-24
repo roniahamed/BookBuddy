@@ -202,8 +202,8 @@ class AdminBookListItem(BaseModel):
     id: int
     title: str
     author_name: str
-    front_cover_url: Optional[str] = None
-    back_cover_url: Optional[str] = None
+    front_cover_image: Optional[str] = None
+    back_cover_image: Optional[str] = None
     owner_id: int
     owner_name: str = ""
     owner_email: str = ""

@@ -73,8 +73,8 @@ class BookListItemResponse(BaseModel):
     id: int
     title: str
     author: Optional[AuthorResponse] = None
-    front_cover_url: Optional[str] = None
-    back_cover_url: Optional[str] = None
+    front_cover_image: Optional[str] = None
+    back_cover_image: Optional[str] = None
     condition: str
     availability: str
     avg_rating: float = 0.0
@@ -98,8 +98,8 @@ class BookDetailResponse(BaseModel):
     title: str
     author: Optional[AuthorResponse] = None
     description: Optional[str] = None
-    front_cover_url: Optional[str] = None
-    back_cover_url: Optional[str] = None
+    front_cover_image: Optional[str] = None
+    back_cover_image: Optional[str] = None
     condition: str
     availability: str
     avg_rating: float = 0.0
@@ -126,8 +126,8 @@ class BookCreateRequest(BaseModel):
     genre_id: Optional[int] = Field(None, description="Genre ID from /genres")
     description: Optional[str] = Field(None, description="Book description and condition")
     language: Optional[str] = Field("English", description="Book language")
-    front_cover_url: Optional[str] = Field(None, max_length=500, description="Front cover image URL")
-    back_cover_url: Optional[str] = Field(None, max_length=500, description="Back cover image URL")
+    front_cover_image: Optional[str] = Field(None, max_length=500, description="Front cover image URL")
+    back_cover_image: Optional[str] = Field(None, max_length=500, description="Back cover image URL")
     condition: str = Field("Good", description="Book condition: New | Good | Used")
     borrow_duration_days: int = Field(30, ge=1, le=365, description="Max borrow days")
     location: Optional[str] = Field(None, max_length=255, description="Pickup address")
@@ -155,8 +155,8 @@ class BookUpdateRequest(BaseModel):
     author_id: Optional[int] = None
     genre_id: Optional[int] = None
     description: Optional[str] = None
-    front_cover_url: Optional[str] = None
-    back_cover_url: Optional[str] = None
+    front_cover_image: Optional[str] = None
+    back_cover_image: Optional[str] = None
     condition: Optional[str] = None
     borrow_duration_days: Optional[int] = Field(None, ge=1, le=365)
     location: Optional[str] = None

@@ -14,7 +14,7 @@ class BorrowBookBrief(BaseModel):
     id: int
     title: str
     author_name: Optional[str] = None
-    front_cover_url: Optional[str] = None
+    front_cover_image: Optional[str] = None
     description: Optional[str] = None
     avg_rating: float = 0.0
 

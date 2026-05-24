@@ -50,7 +50,7 @@ class ChatService:
                 other_user=other_user,
                 book_id=conv.book_id,
                 book_title=conv.book.title if conv.book else None,
-                book_image=conv.book.front_cover_url if conv.book else None,
+                book_image=conv.book.front_cover_image if conv.book else None,
                 last_message=r["last_message"],  # Already decrypted in repo
                 last_message_at=conv.last_message_at,
                 unread_count=r["unread_count"],
@@ -77,7 +77,7 @@ class ChatService:
             other_user=other_user,
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
-            book_image=conv.book.front_cover_url if conv.book else None,
+            book_image=conv.book.front_cover_image if conv.book else None,
             last_message_at=conv.last_message_at,
             created_at=conv.created_at,
         )
@@ -126,7 +126,7 @@ class ChatService:
             items=items, 
             book_id=conv.book_id,
             book_title=conv.book.title if conv.book else None,
-            book_image=conv.book.front_cover_url if conv.book else None,
+            book_image=conv.book.front_cover_image if conv.book else None,
             total=total, page=pagination.page,
             per_page=pagination.per_page, pages=pages,
             has_next=pagination.page < pages, has_prev=pagination.page > 1,
