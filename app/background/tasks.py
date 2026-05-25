@@ -60,8 +60,19 @@ def send_push_notification_task(self, user_id: int, title: str, body: str, data:
                 return {"status": "skipped", "reason": "no tokens"}
                 
             result = send_push_notification(token_list, title, body, data)
-            if not result:
-                raise Exception("Push notification returned False")
+            if isinstance(result, bool):
+                # Fallback for old behavior
+                if not result:
+                    raise Exception("Push notification returned False")
+            elif not result.get("success"):
+                raise Exception(f"Push notification failed: {result.get('error')}")
+            else:
+                failed_tokens = result.get("failed_tokens", [])
+                if failed_tokens:
+                    db.query(UserFCMToken).filter(UserFCMToken.token.in_(failed_tokens)).delete(synchronize_session=False)
+                    db.commit()
+                    logger.info(f"Cleaned up {len(failed_tokens)} failed FCM tokens")
+
             logger.info(f"Push notification sent: {title} to {len(token_list)} devices")
             return {"status": "sent", "devices": len(token_list)}
         finally:

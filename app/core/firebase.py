@@ -63,18 +63,18 @@ def send_push_notification(
     title: str,
     body: str,
     data: dict = None,
-) -> bool:
+) -> dict:
     """
     Send a push notification via Firebase Cloud Messaging.
-    Returns True on success, False on failure.
+    Returns dict with success status and failed tokens.
     """
     if not fcm_tokens:
-        return False
+        return {"success": False, "error": "No tokens provided"}
 
     _init_firebase()
     if _firebase_app is None:
         logger.warning("Firebase not initialized, skipping push notification")
-        return False
+        return {"success": False, "error": "Firebase not initialized"}
 
     try:
         from firebase_admin import messaging
@@ -86,7 +86,14 @@ def send_push_notification(
         )
         response = messaging.send_each_for_multicast(message)
         logger.info(f"FCM push sent: {response.success_count} success, {response.failure_count} failure")
-        return response.success_count > 0
+        
+        failed_tokens = []
+        if response.failure_count > 0:
+            for idx, res in enumerate(response.responses):
+                if not res.success:
+                    failed_tokens.append(fcm_tokens[idx])
+                    
+        return {"success": True, "failed_tokens": failed_tokens}
     except Exception as e:
         logger.error(f"FCM push failed: {e}")
-        return False
+        return {"success": False, "error": str(e)}
