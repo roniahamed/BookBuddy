@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: bookbuddy_db
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: bookbuddy_redis
+    restart: always
+
+  api:
+    build: .
+    container_name: bookbuddy_api
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: bookbuddy_nginx
+    ports:
+      - "8007:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - api
+    restart: always
+
+  celery_worker:
+    build: .
+    container_name: bookbuddy_celery_worker
+    env_file:
+      - .env
+    command: celery -A app.background.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - db
+    restart: always
+
+  celery_beat:
+    build: .
+    container_name: bookbuddy_celery_beat
+    env_file:
+      - .env
+    command: celery -A app.background.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+      - db
+    restart: always
+
+volumes:
+  postgres_data:

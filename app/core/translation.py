@@ -20,7 +20,7 @@ def translate_text(text: str, target_lang: str, source_lang: str = None) -> str:
         return text
 
     api_key = settings.GOOGLE_TRANSLATE_API_KEY
-    if not api_key or api_key == "your-google-translate-api-key":
+    if not api_key:
         logger.warning("Google Translate API key not configured")
         return text
 

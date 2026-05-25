@@ -15,17 +15,14 @@ def _get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
         key = settings.ENCRYPTION_KEY
-        if not key or key == "your-fernet-32-byte-base64-key-here":
-            # Generate a deterministic key from SECRET_KEY as fallback
-            digest = hashlib.sha256(settings.SECRET_KEY.encode()).digest()
-            key = base64.urlsafe_b64encode(digest).decode()
+        if not key:
+            raise ValueError("ENCRYPTION_KEY environment variable is not set")
+        
+        if len(key) == 32:
+            key = base64.urlsafe_b64encode(key.encode()).decode()
         else:
-            # Ensure the key is valid Fernet format (32 url-safe base64 bytes)
-            try:
-                base64.urlsafe_b64decode(key)
-            except Exception:
-                digest = hashlib.sha256(key.encode()).digest()
-                key = base64.urlsafe_b64encode(digest).decode()
+            digest = hashlib.sha256(key.encode()).digest()
+            key = base64.urlsafe_b64encode(digest).decode()
         _fernet = Fernet(key)
     return _fernet
 
