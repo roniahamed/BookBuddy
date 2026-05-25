@@ -116,6 +116,16 @@ class BookRepository:
         """Get single book with all relationships eager-loaded."""
         return self._base_book_query().filter(Book.id == book_id).first()
 
+    def _get_fallback_books(self, limit: int, exclude_ids: list[int] = None) -> list[Book]:
+        """Fetch fallback books to ensure minimum items are returned."""
+        query = self._base_book_query().filter(
+            Book.availability == "available",
+            Book.approval_status == "approved"
+        )
+        if exclude_ids:
+            query = query.filter(Book.id.notin_(exclude_ids))
+        return query.order_by(desc(Book.avg_rating), desc(Book.created_at)).limit(limit).all()
+
     def get_books_by_owner(self, owner_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Book], int]:
         """Get books uploaded by a specific user."""
         query = self._base_book_query().filter(Book.owner_id == owner_id)
@@ -145,6 +155,13 @@ class BookRepository:
 
         distance = _haversine_distance(lat, lon, Book.latitude, Book.longitude)
         books = query.order_by(distance).offset(offset).limit(limit).all()
+        
+        if offset == 0 and len(books) < 8:
+            exclude_ids = [b.id for b in books]
+            extra = self._get_fallback_books(limit=8 - len(books), exclude_ids=exclude_ids)
+            books.extend(extra)
+            total = max(total, len(books))
+            
         return books, total
 
     def get_recommended_books(self, user_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Book], int]:
@@ -176,6 +193,11 @@ class BookRepository:
             total = query.count()
             if total > 0:
                 books = query.order_by(desc(Book.avg_rating)).offset(offset).limit(limit).all()
+                if offset == 0 and len(books) < 8:
+                    exclude_ids = [b.id for b in books]
+                    extra = self._get_fallback_books(limit=8 - len(books), exclude_ids=exclude_ids)
+                    books.extend(extra)
+                    total = max(total, len(books))
                 return books, total
 
         query = (
@@ -184,18 +206,33 @@ class BookRepository:
         )
         total = query.count()
         books = query.order_by(desc(Book.avg_rating), desc(Book.created_at)).offset(offset).limit(limit).all()
+        if offset == 0 and len(books) < 8:
+            exclude_ids = [b.id for b in books]
+            extra = self._get_fallback_books(limit=8 - len(books), exclude_ids=exclude_ids)
+            books.extend(extra)
+            total = max(total, len(books))
         return books, total
 
     def get_new_arrivals(self, limit: int = 20, offset: int = 0) -> tuple[list[Book], int]:
         query = self._base_book_query().filter(Book.availability == "available", Book.approval_status == "approved")
         total = query.count()
         books = query.order_by(desc(Book.created_at)).offset(offset).limit(limit).all()
+        if offset == 0 and len(books) < 8:
+            exclude_ids = [b.id for b in books]
+            extra = self._get_fallback_books(limit=8 - len(books), exclude_ids=exclude_ids)
+            books.extend(extra)
+            total = max(total, len(books))
         return books, total
 
     def get_top_rated(self, limit: int = 20, offset: int = 0) -> tuple[list[Book], int]:
         query = self._base_book_query().filter(Book.availability == "available", Book.approval_status == "approved")
         total = query.count()
         books = query.order_by(desc(Book.avg_rating), desc(Book.created_at)).offset(offset).limit(limit).all()
+        if offset == 0 and len(books) < 8:
+            exclude_ids = [b.id for b in books]
+            extra = self._get_fallback_books(limit=8 - len(books), exclude_ids=exclude_ids)
+            books.extend(extra)
+            total = max(total, len(books))
         return books, total
 
     def create_book(self, owner_id: int, data: dict) -> Book:

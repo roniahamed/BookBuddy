@@ -272,12 +272,12 @@ class BookService:
             "condition": data.condition,
             "genre_id": genre_id,
             "borrow_duration_days": data.borrow_duration_days,
-            "approval_status": "pending"
+            "approval_status": "approved"
         })
 
         log_platform_activity(
             self.repo.db, user.id, "book_added",
-            f"{user.full_name} shared a new book: '{book.title}' (Pending Approval)"
+            f"{user.full_name} shared a new book: '{book.title}' (Auto-Approved)"
         )
 
         # Notify admins
@@ -290,11 +290,11 @@ class BookService:
             notification_service.create_notification(
                 user_id=admin_usr.id,
                 title="New Book Uploaded",
-                message=f"'{book.title}' needs approval.",
+                message=f"'{book.title}' was automatically approved.",
             )
             tokens = self.repo.db.query(UserFCMToken).filter(UserFCMToken.user_id == admin_usr.id).all()
             fcm_tokens = [t.token for t in tokens]
-            send_push_notification(fcm_tokens, "New Book Uploaded", f"'{book.title}' needs approval.")
+            send_push_notification(fcm_tokens, "New Book Uploaded", f"'{book.title}' was automatically approved.")
 
         self.repo.db.commit()
 
