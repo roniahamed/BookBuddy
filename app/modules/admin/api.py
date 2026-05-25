@@ -355,7 +355,7 @@ async def delete_book(
     db: Session = Depends(get_db),
 ):
     service = AdminManagementService(db)
-    return service.delete_book(book_id)
+    return service.delete_book(book_id, admin)
 
 
 # ═══════════════════════════════════════════════════════════

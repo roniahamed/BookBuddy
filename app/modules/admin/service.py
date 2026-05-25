@@ -323,6 +323,9 @@ class AdminManagementService:
                 body=f"Your book '{book.title}' has been marked unavailable by an admin.",
             )
 
+        log_msg = f"Admin updated book: '{updated.title}'"
+        if data.availability is not None:
+            log_msg += f", availability={data.availability}"
         if data.description is not None:
             log_msg += f", description updated"
         log_platform_activity(self.db, user.id, "book_updated", log_msg)
@@ -376,6 +379,9 @@ class AdminManagementService:
         deleted, owner_id = self.repo.delete_book(book_id)
         if not deleted:
             raise HTTPException(status_code=500, detail="Failed to delete book")
+
+        # Log platform activity
+        log_platform_activity(self.db, user.id, "book_deleted", f"Admin deleted book: '{title}'")
 
         # Notify owner of removal
         if owner:
