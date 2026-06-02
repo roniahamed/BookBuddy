@@ -272,6 +272,9 @@ class BookService:
             "condition": data.condition,
             "genre_id": genre_id,
             "borrow_duration_days": data.borrow_duration_days,
+            "location": data.location,
+            "latitude": data.latitude,
+            "longitude": data.longitude,
             "approval_status": "approved"
         })
 

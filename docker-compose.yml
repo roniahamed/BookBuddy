@@ -25,6 +25,8 @@ services:
     depends_on:
       - db
       - redis
+    volumes:
+      - static_data:/app/static
     restart: always
 
   nginx:
@@ -62,3 +64,4 @@ services:
 
 volumes:
   postgres_data:
+  static_data:
