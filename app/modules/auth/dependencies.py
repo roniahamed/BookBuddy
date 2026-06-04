@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.dependencies import get_db
 from app.modules.auth.repository import AuthRepository
+from app.modules.auth.exceptions import AccountDeactivatedException
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
@@ -43,6 +44,9 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    if not user.is_active:
+        raise AccountDeactivatedException()
+
     return user
 
 
@@ -70,6 +74,8 @@ async def get_current_user_optional(
 
     repo = AuthRepository(db)
     user = repo.get_user_by_id(int(user_id))
+    if user is None or not user.is_active:
+        return None
     return user
 
 
@@ -93,4 +99,6 @@ async def get_current_user_ws(token: str, db: Session):
 
     repo = AuthRepository(db)
     user = repo.get_user_by_id(int(user_id))
+    if user is None or not user.is_active:
+        return None
     return user

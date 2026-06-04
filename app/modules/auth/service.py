@@ -60,6 +60,9 @@ class AuthService:
         if not user:
             raise InvalidCredentialsException()
 
+        if not user.is_active:
+            raise AccountDeactivatedException()
+
         if user.auth_provider == "google" and not user.password_hash:
             raise HTTPException(
                 status_code=400,
@@ -126,6 +129,9 @@ class AuthService:
                     firebase_uid=uid,
                     avatar_url=picture,
                 )
+
+        if not user.is_active:
+            raise AccountDeactivatedException()
 
         access_token = create_access_token(subject=user.id)
         refresh_token = create_refresh_token(subject=user.id)
