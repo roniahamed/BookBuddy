@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str
     SMTP_FROM_NAME: str
     SMTP_FROM_EMAIL: str
+    SMTP_USE_SSL: bool = False
+    SMTP_USE_TLS: bool = True
 
     # ─── Google Translate API ─────────────────────────────
     GOOGLE_TRANSLATE_API_KEY: str
