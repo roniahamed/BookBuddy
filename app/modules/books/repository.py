@@ -162,6 +162,21 @@ class BookRepository:
             books.extend(extra)
             total = max(total, len(books))
             
+            def get_dist(b):
+                if b.latitude is None or b.longitude is None:
+                    return float('inf')
+                R = 6371.0
+                lat1 = math.radians(lat)
+                lon1 = math.radians(lon)
+                lat2 = math.radians(b.latitude)
+                lon2 = math.radians(b.longitude)
+                dlat = lat2 - lat1
+                dlon = lon2 - lon1
+                a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+                return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+                
+            books.sort(key=get_dist)
+            
         return books, total
 
     def get_recommended_books(self, user_id: int, offset: int = 0, limit: int = 20) -> tuple[list[Book], int]:
