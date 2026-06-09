@@ -275,29 +275,13 @@ class BookService:
             "location": data.location,
             "latitude": data.latitude,
             "longitude": data.longitude,
-            "approval_status": "pending"
+            "approval_status": "approved"
         })
 
         log_platform_activity(
             self.repo.db, user.id, "book_added",
-            f"{user.full_name} shared a new book: '{book.title}' (Pending Admin Approval)"
+            f"{user.full_name} shared a new book: '{book.title}'"
         )
-
-        # Notify admins
-        admins = self.repo.db.query(User).filter(User.role == "admin").all()
-        notification_service = NotificationService(self.repo.db)
-        from app.core.firebase import send_push_notification
-        from app.modules.users.model import UserFCMToken
-        
-        for admin_usr in admins:
-            notification_service.create_notification(
-                user_id=admin_usr.id,
-                title="New Book Pending Approval",
-                message=f"'{book.title}' requires your approval.",
-            )
-            tokens = self.repo.db.query(UserFCMToken).filter(UserFCMToken.user_id == admin_usr.id).all()
-            fcm_tokens = [t.token for t in tokens]
-            send_push_notification(fcm_tokens, "New Book Pending Approval", f"'{book.title}' requires your approval.")
 
         self.repo.db.commit()
 
