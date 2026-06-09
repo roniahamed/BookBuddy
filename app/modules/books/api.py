@@ -33,7 +33,7 @@ from app.modules.books.schema import (
     BookCreateRequest, BookUpdateRequest,
     BookPaginatedResponse, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewPaginatedResponse,
-    GenrePaginatedResponse, AuthorPaginatedResponse,
+    GenrePaginatedResponse, AuthorPaginatedResponse, ExternalBookSearchResponse
 )
 from app.shared.pagination import PaginationParams
 
@@ -170,6 +170,26 @@ async def get_my_wishlist(
 
 
 # ─── Single Book ─────────────────────────────────────────
+
+@router.get(
+    "/search-external",
+    response_model=ExternalBookSearchResponse,
+    summary="Search books from external API",
+    description=(
+        "Search for books via Google Books API (by title, author, or ISBN) "
+        "to auto-fill frontend forms. Returns a list of matches including "
+        "front_cover_image and back_cover_image (if available)."
+    ),
+)
+async def search_external_books(
+    q: str = Query(..., description="Search query (title, author, or ISBN)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = BookService(db)
+    return service.search_external_books(q)
+
+
 
 @router.get(
     "/{book_id}",

@@ -16,7 +16,7 @@ from app.modules.books.schema import (
     BookPaginatedResponse, BookOwnerBrief, GenreResponse, GenreCreate, AuthorResponse, AuthorCreate,
     ReviewCreateRequest, ReviewResponse, ReviewerBrief, ReviewPaginatedResponse,
     WishlistItemResponse, WishlistPaginatedResponse,
-    GenrePaginatedResponse, AuthorPaginatedResponse,
+    GenrePaginatedResponse, AuthorPaginatedResponse, ExternalBookSearchResponse, ExternalBookSearchItem
 )
 from app.modules.users.model import User
 from app.shared.pagination import PaginationParams
@@ -286,6 +286,71 @@ class BookService:
         self.repo.db.commit()
 
         return self.get_book_detail(book.id, user)
+
+    def search_external_books(self, query: str) -> ExternalBookSearchResponse:
+        import httpx
+        from app.core.config import settings
+
+        # 1. Fetch book details from Google Books API
+        search_query = query.strip()
+        # If the query is an ISBN (10 or 13 digits), use the isbn: filter
+        if search_query.isdigit() and len(search_query) in (10, 13):
+            search_query = f"isbn:{search_query}"
+            
+        url = f"https://www.googleapis.com/books/v1/volumes?q={search_query}&maxResults=10"
+        if settings.GOOGLE_BOOKS_API_KEY:
+            url += f"&key={settings.GOOGLE_BOOKS_API_KEY}"
+            
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                api_data = response.json()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch book details: {str(e)}")
+
+        if "items" not in api_data or not api_data["items"]:
+            return ExternalBookSearchResponse(items=[])
+
+        results = []
+        for item in api_data["items"]:
+            volume_info = item.get("volumeInfo", {})
+
+            title = volume_info.get("title")
+            authors = volume_info.get("authors", [])
+            author_name = authors[0] if authors else None
+            description = volume_info.get("description")
+            categories = volume_info.get("categories", [])
+            genre_name = categories[0] if categories else None
+            
+            image_links = volume_info.get("imageLinks", {})
+            front_cover = image_links.get("thumbnail") or image_links.get("smallThumbnail")
+            if front_cover:
+                front_cover = front_cover.replace("http://", "https://")
+            
+            # Google Books API doesn't standardly provide a back cover.
+            back_cover = None 
+
+            # Extract ISBN
+            isbn = None
+            industry_identifiers = volume_info.get("industryIdentifiers", [])
+            for identifier in industry_identifiers:
+                if identifier.get("type") in ("ISBN_13", "ISBN_10"):
+                    isbn = identifier.get("identifier")
+                    if identifier.get("type") == "ISBN_13":
+                        break # Prefer ISBN_13
+
+            results.append(ExternalBookSearchItem(
+                isbn=isbn,
+                title=title,
+                author=author_name,
+                description=description,
+                genre=genre_name,
+                front_cover_image=front_cover,
+                back_cover_image=back_cover
+            ))
+
+        return ExternalBookSearchResponse(items=results)
 
     def update_book(self, book_id: int, user: User, data: BookUpdateRequest) -> BookDetailResponse:
         """Update book details (owner only)."""

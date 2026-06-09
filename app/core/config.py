@@ -31,8 +31,9 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
     SMTP_USE_TLS: bool = True
 
-    # ─── Google Translate API ─────────────────────────────
+    # ─── Google Translate & Books API ─────────────────────────────
     GOOGLE_TRANSLATE_API_KEY: str
+    GOOGLE_BOOKS_API_KEY: Optional[str] = None
 
     # ─── Redis + Celery ──────────────────────────────────
     REDIS_URL: str

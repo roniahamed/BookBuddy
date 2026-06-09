@@ -166,6 +166,36 @@ class BookUpdateRequest(BaseModel):
     availability: Optional[str] = None
 
 
+class ExternalBookSearchItem(BaseModel):
+    """A single book result from the external search API."""
+    isbn: Optional[str] = None
+    title: Optional[str] = None
+    author: Optional[str] = None
+    description: Optional[str] = None
+    genre: Optional[str] = None
+    front_cover_image: Optional[str] = None
+    back_cover_image: Optional[str] = None
+
+class ExternalBookSearchResponse(BaseModel):
+    """Response containing a list of books found from the external API."""
+    items: List[ExternalBookSearchItem] = []
+
+    model_config = {"json_schema_extra": {
+        "example": {
+            "items": [
+                {
+                    "isbn": "9780140328721",
+                    "title": "Fantastic Mr. Fox",
+                    "author": "Roald Dahl",
+                    "description": "A story about a clever fox...",
+                    "genre": "Juvenile Fiction",
+                    "front_cover_image": "https://books.google.com/books/content?id=...",
+                    "back_cover_image": None
+                }
+            ]
+        }
+    }}
+
 # ─── Paginated Book Response ─────────────────────────────
 class BookPaginatedResponse(BaseModel):
     """Paginated list of books for Browse Book screen."""
