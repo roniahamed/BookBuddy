@@ -74,6 +74,7 @@ class BookListItemResponse(BaseModel):
     title: str
     author: Optional[AuthorResponse] = None
     front_cover_image: Optional[str] = None
+    front_cover_image_url: Optional[str] = None
     back_cover_image: Optional[str] = None
     condition: str
     availability: str
@@ -99,6 +100,7 @@ class BookDetailResponse(BaseModel):
     author: Optional[AuthorResponse] = None
     description: Optional[str] = None
     front_cover_image: Optional[str] = None
+    front_cover_image_url: Optional[str] = None
     back_cover_image: Optional[str] = None
     condition: str
     availability: str
@@ -128,6 +130,7 @@ class BookCreateRequest(BaseModel):
     description: Optional[str] = Field(None, description="Book description and condition")
     language: Optional[str] = Field("English", description="Book language")
     front_cover_image: Optional[str] = Field(None, max_length=500, description="Front cover image URL")
+    front_cover_image_url: Optional[str] = Field(None, max_length=500, description="External front cover image URL")
     back_cover_image: Optional[str] = Field(None, max_length=500, description="Back cover image URL")
     condition: str = Field("Good", description="Book condition: New | Good | Used")
     borrow_duration_days: int = Field(30, ge=1, le=365, description="Max borrow days")
@@ -157,6 +160,7 @@ class BookUpdateRequest(BaseModel):
     genre_id: Optional[int] = None
     description: Optional[str] = None
     front_cover_image: Optional[str] = None
+    front_cover_image_url: Optional[str] = None
     back_cover_image: Optional[str] = None
     condition: Optional[str] = None
     borrow_duration_days: Optional[int] = Field(None, ge=1, le=365)
@@ -174,6 +178,7 @@ class ExternalBookSearchItem(BaseModel):
     description: Optional[str] = None
     genre: Optional[str] = None
     front_cover_image: Optional[str] = None
+    front_cover_image_url: Optional[str] = None
     back_cover_image: Optional[str] = None
 
 class ExternalBookSearchResponse(BaseModel):
@@ -190,6 +195,7 @@ class ExternalBookSearchResponse(BaseModel):
                     "description": "A story about a clever fox...",
                     "genre": "Juvenile Fiction",
                     "front_cover_image": "https://books.google.com/books/content?id=...",
+                    "front_cover_image_url": "https://books.google.com/books/content?id=...",
                     "back_cover_image": None
                 }
             ]

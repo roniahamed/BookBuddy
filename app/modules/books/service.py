@@ -55,6 +55,7 @@ def _book_to_list_item(
         title=book.title,
         author=author,
         front_cover_image=book.front_cover_image,
+        front_cover_image_url=book.front_cover_image_url,
         back_cover_image=book.back_cover_image,
         condition=book.condition,
         availability=book.availability,
@@ -229,6 +230,7 @@ class BookService:
             author=author,
             description=book.description,
             front_cover_image=book.front_cover_image,
+            front_cover_image_url=book.front_cover_image_url,
             back_cover_image=book.back_cover_image,
             condition=book.condition,
             availability=book.availability,
@@ -268,6 +270,7 @@ class BookService:
             "author_id": author_id,
             "description": data.description,
             "front_cover_image": data.front_cover_image,
+            "front_cover_image_url": data.front_cover_image_url,
             "back_cover_image": data.back_cover_image,
             "condition": data.condition,
             "genre_id": genre_id,
@@ -347,6 +350,7 @@ class BookService:
                 description=description,
                 genre=genre_name,
                 front_cover_image=front_cover,
+                front_cover_image_url=front_cover,
                 back_cover_image=back_cover
             ))
 
