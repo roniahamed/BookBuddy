@@ -171,6 +171,18 @@ class AdminUserSuspendRequest(BaseModel):
     }}
 
 
+class AdminUserUpdateRoleRequest(BaseModel):
+    """Update a user's role."""
+    role: Literal["user", "admin"] = Field(
+        ...,
+        description="The new role for the user"
+    )
+
+    model_config = {"json_schema_extra": {
+        "example": {"role": "admin"}
+    }}
+
+
 class AdminUserActionResponse(BaseModel):
     """Generic response after a user management action."""
     message: str

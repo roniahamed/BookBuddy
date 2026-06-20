@@ -42,7 +42,7 @@ from app.modules.admin.schema import (
     AppConfigResponse, AppConfigUpdateRequest, AppConfigListResponse,
     AdminStatsResponse,
     AdminUserListResponse, AdminUserDetailResponse,
-    AdminUserSuspendRequest, AdminUserActionResponse,
+    AdminUserSuspendRequest, AdminUserUpdateRoleRequest, AdminUserActionResponse,
     AdminBookListResponse, AdminBookUpdateRequest, AdminBookActionResponse,
     AdminReviewListResponse, AdminReviewActionResponse,
     AdminBroadcastNotificationRequest, AdminBroadcastNotificationResponse,
@@ -236,6 +236,26 @@ async def activate_user(
 ):
     service = AdminManagementService(db)
     return service.activate_user(user_id, admin)
+
+
+@router.patch(
+    "/users/{user_id}/role",
+    response_model=AdminUserActionResponse,
+    summary="Update user role",
+    description="Update a user's role (e.g., promote them to admin or demote to user).",
+    responses={
+        400: {"description": "Cannot demote yourself / User already has this role"},
+        404: {"description": "User not found"},
+    },
+)
+async def update_user_role(
+    user_id: int,
+    data: AdminUserUpdateRoleRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    service = AdminManagementService(db)
+    return service.update_user_role(user_id, data, admin)
 
 
 @router.delete(

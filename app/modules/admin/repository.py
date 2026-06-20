@@ -170,6 +170,14 @@ class AdminManagementRepository:
             self.db.refresh(user)
         return user
 
+    def update_user_role(self, user_id: int, role: str) -> Optional[User]:
+        user = self.get_user_by_id(user_id)
+        if user:
+            user.role = role
+            self.db.commit()
+            self.db.refresh(user)
+        return user
+
     def delete_user(self, user_id: int) -> bool:
         user = self.get_user_by_id(user_id)
         if not user:

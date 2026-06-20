@@ -14,6 +14,7 @@ from app.modules.admin.schema import (
     AppConfigResponse, AppConfigListResponse, AppConfigUpdateRequest,
     AdminStatsResponse,
     AdminUserListItem, AdminUserDetailResponse, AdminUserSuspendRequest,
+    AdminUserUpdateRoleRequest,
     AdminUserActionResponse, AdminUserListResponse,
     AdminBookListItem, AdminBookUpdateRequest, AdminBookActionResponse, AdminBookListResponse,
     AdminReviewListItem, AdminReviewActionResponse, AdminReviewListResponse,
@@ -235,6 +236,26 @@ class AdminManagementService:
             message=f"User '{user.email}' has been reactivated.",
             user_id=user_id,
             is_active=True,
+        )
+
+    def update_user_role(self, user_id: int, data: AdminUserUpdateRoleRequest, admin_user) -> AdminUserActionResponse:
+        """Update a user's role."""
+        user = self.repo.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user_id == admin_user.id and data.role != "admin":
+            raise HTTPException(status_code=400, detail="You cannot demote yourself.")
+        if user.role == data.role:
+            raise HTTPException(status_code=400, detail=f"User already has the role '{data.role}'")
+
+        self.repo.update_user_role(user_id, data.role)
+        
+        log_platform_activity(self.db, admin_user.id, "user_role_updated", f"Admin updated user '{user.email}' role to '{data.role}'")
+
+        return AdminUserActionResponse(
+            message=f"User '{user.email}' role updated to '{data.role}'.",
+            user_id=user_id,
+            is_active=user.is_active,
         )
 
     def delete_user(self, user_id: int, admin_user) -> dict:
